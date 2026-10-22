@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: cloud-resource-scheduler
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run.py
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: USE_SQLITE_FALLBACK
+        value: "True"
+      - key: USE_MOCK_AWS
+        value: "True"
+      - key: SCAN_INTERVAL_SECONDS
+        value: "15"
+      - key: GRACE_PERIOD_MINUTES
+        value: "30"
+      - key: NTFY_TOPIC
+        value: vasanth_cloud_alerts
+      - key: ALERT_PHONE_NUMBER
+        value: "+919025903459"
+      - key: ALERT_WHATSAPP_NUMBER
+        value: "whatsapp:+919025903459"
+      - key: ALERT_EMAIL_RECIPIENT
+        value: "vasanthkumar20262026@gmail.com"
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USE_TLS
+        value: "True"
+      - key: SMTP_USER
+        value: vasanthkumar20212021@gmail.com
+      - key: SMTP_PASSWORD
+        value: lubslfnepzqomxna
+      - key: SMTP_FROM_EMAIL
+        value: vasanthkumar20212021@gmail.com
+      - key: SECRET_KEY
+        generateValue: true

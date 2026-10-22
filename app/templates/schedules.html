@@ -1,0 +1,794 @@
+{% extends "base.html" %}
+
+{% block title %}Schedules | Cloud Scheduler{% endblock %}
+
+{% block content %}
+<!-- Top Executive Navigation Bar -->
+<nav class="top-blue-navbar">
+  <div class="navbar-left-group">
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-brand-title">Cloud Scheduler</a>
+    <div class="navbar-links-scroll">
+      <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-nav-link">Dashboard</a>
+      <a href="{{ url_for('dashboard.view_resources') }}" class="navbar-nav-link">Resources</a>
+      <a href="{{ url_for('dashboard.view_schedules') }}" class="navbar-nav-link active">Schedules</a>
+      <a href="{{ url_for('dashboard.view_alerts') }}" class="navbar-nav-link">Alerts</a>
+      <a href="{{ url_for('dashboard.view_audit_logs') }}" class="navbar-nav-link">Audit logs</a>
+      <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="navbar-nav-link">Cloud Accounts</a>
+    </div>
+  </div>
+
+  <div class="navbar-right-group">
+    <span class="navbar-username">{{ user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-navbar-logout">Logout</a>
+  </div>
+</nav>
+
+<!-- Page Content -->
+<main class="page-standard-container">
+  <div class="page-header-flex">
+    <div>
+      <h1 class="page-heading-title">Schedules &amp; Policy Governance</h1>
+      <p class="page-heading-subtext">Configure operational time windows, continuous runtime caps, and automated multi-channel violation alerting.</p>
+    </div>
+    <div id="editing-indicator" style="display: none;">
+      <span class="badge-edit-mode">
+        Editing Schedule <span id="editing-sched-id"></span>
+      </span>
+      <button type="button" class="btn-secondary-action" onclick="cancelEditMode()" style="font-size: 12px; padding: 6px 12px;">
+        Cancel Edit
+      </button>
+    </div>
+  </div>
+
+  <!-- Alert / Notice Banner -->
+  <div id="schedule-alert-banner" class="alert-banner" style="display: none;"></div>
+
+  <!-- Schedule Creation & Modification Card -->
+  <div class="card-white-box card-schedule-form">
+    <div class="schedule-form-header">
+      <div>
+        <h2 id="form-title" class="section-title">Create Resource Schedule</h2>
+        <p class="section-desc">Define exact dates, start time, stop time, and maximum running hours &amp; minutes for cloud workloads.</p>
+      </div>
+      
+      <!-- Mode Toggle (Daily Recurring vs Specific Calendar Date) -->
+      <div class="schedule-mode-tabs">
+        <button type="button" id="tab-mode-daily" class="mode-tab-btn active" onclick="switchScheduleMode('daily')">
+          Daily Recurring Time
+        </button>
+        <button type="button" id="tab-mode-date" class="mode-tab-btn" onclick="switchScheduleMode('date')">
+          Specific Date &amp; Time
+        </button>
+      </div>
+    </div>
+
+    <form id="create-schedule-form" onsubmit="handleSaveSchedule(event)">
+      <input type="hidden" id="editing-schedule-id" value="">
+
+      <!-- Row 1: Target Resource Selection -->
+      <div class="form-row-resource">
+        <div class="form-field">
+          <label for="sched-resource-select">
+            Target Cloud Resource <span class="required-star">*</span>
+          </label>
+          <div class="field-input-box">
+            <select id="sched-resource-select" required>
+              <option value="">Select a cloud workload...</option>
+            </select>
+          </div>
+          <span class="field-hint">Workloads in AWS EC2 or Azure Virtual Machines that will be governed by this policy.</span>
+        </div>
+      </div>
+
+      <!-- Mode 1: Daily Recurring Window Controls (Hour & Minute Dropdowns) -->
+      <div id="controls-daily-mode" class="time-picker-panel">
+        <div class="time-picker-grid">
+          <!-- Start Time (Daily) -->
+          <div class="time-block">
+            <label class="time-block-label">Scheduled Start Time</label>
+            <div class="time-inputs-cluster">
+              <div class="time-input-sub">
+                <label>Hour (0-23)</label>
+                <select id="sched-daily-start-h" class="time-select" onchange="syncDailyInputs()">
+                  <!-- 00 to 23 -->
+                </select>
+              </div>
+              <span class="time-colon">:</span>
+              <div class="time-input-sub">
+                <label>Minute</label>
+                <select id="sched-daily-start-m" class="time-select" onchange="syncDailyInputs()">
+                  <!-- 00 to 55 -->
+                </select>
+              </div>
+              <span class="time-tz-badge">UTC</span>
+            </div>
+          </div>
+
+          <!-- Stop Time (Daily) -->
+          <div class="time-block">
+            <label class="time-block-label">Scheduled Stop Time</label>
+            <div class="time-inputs-cluster">
+              <div class="time-input-sub">
+                <label>Hour (0-23)</label>
+                <select id="sched-daily-stop-h" class="time-select" onchange="syncDailyInputs()">
+                  <!-- 00 to 23 -->
+                </select>
+              </div>
+              <span class="time-colon">:</span>
+              <div class="time-input-sub">
+                <label>Minute</label>
+                <select id="sched-daily-stop-m" class="time-select" onchange="syncDailyInputs()">
+                  <!-- 00 to 55 -->
+                </select>
+              </div>
+              <span class="time-tz-badge">UTC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode 2: Specific Calendar Date & Time Controls (Date + Hour + Minute) -->
+      <div id="controls-date-mode" class="time-picker-panel" style="display: none;">
+        <div class="time-picker-grid">
+          <!-- Start Date & Time -->
+          <div class="time-block">
+            <label class="time-block-label">Scheduled Start Date &amp; Time</label>
+            <div class="date-time-cluster">
+              <div class="date-input-wrap">
+                <label>Date</label>
+                <input type="date" id="sched-date-start-d" class="date-native-input" onchange="syncDateInputs()">
+              </div>
+              <div class="time-input-sub">
+                <label>Hour</label>
+                <select id="sched-date-start-h" class="time-select" onchange="syncDateInputs()"></select>
+              </div>
+              <span class="time-colon">:</span>
+              <div class="time-input-sub">
+                <label>Minute</label>
+                <select id="sched-date-start-m" class="time-select" onchange="syncDateInputs()"></select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stop Date & Time -->
+          <div class="time-block">
+            <label class="time-block-label">Scheduled Stop Date &amp; Time</label>
+            <div class="date-time-cluster">
+              <div class="date-input-wrap">
+                <label>Date</label>
+                <input type="date" id="sched-date-stop-d" class="date-native-input" onchange="syncDateInputs()">
+              </div>
+              <div class="time-input-sub">
+                <label>Hour</label>
+                <select id="sched-date-stop-h" class="time-select" onchange="syncDateInputs()"></select>
+              </div>
+              <span class="time-colon">:</span>
+              <div class="time-input-sub">
+                <label>Minute</label>
+                <select id="sched-date-stop-m" class="time-select" onchange="syncDateInputs()"></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Max Runtime Hours & Minutes + Days + Raw String Sync -->
+      <div class="runtime-and-days-grid">
+        <!-- Granular Max Continuous Runtime (Hours & Minutes) -->
+        <div class="form-field">
+          <label>Max Continuous Runtime Limit</label>
+          <div class="runtime-inputs-wrapper">
+            <div class="runtime-sub-field">
+              <input type="number" id="sched-max-runtime-hours" min="0" max="168" step="1" value="8" required oninput="calcMaxRuntimeHours()">
+              <span class="runtime-unit-label">Hours</span>
+            </div>
+            <div class="runtime-sub-field">
+              <select id="sched-max-runtime-minutes" onchange="calcMaxRuntimeHours()">
+                <option value="0">00 Mins</option>
+                <option value="15">15 Mins</option>
+                <option value="30" selected>30 Mins</option>
+                <option value="45">45 Mins</option>
+              </select>
+              <span class="runtime-unit-label">Mins</span>
+            </div>
+          </div>
+          <span class="field-hint">Policy threshold: <strong id="runtime-decimal-preview">8.5</strong> total hours maximum.</span>
+          <input type="hidden" id="sched-max-runtime" value="8.5">
+        </div>
+
+        <!-- Raw Evaluated Window String (For Transparency & Manual Power-Input) -->
+        <div class="form-field">
+          <label>Evaluated Policy Schedule String</label>
+          <div class="sync-strings-row">
+            <input type="text" id="sched-start-time" placeholder="09:00" required readonly style="background:#f8fafc; font-family:var(--font-mono); font-size:12px;">
+            <span style="color:#64748b; font-weight:700;">&rarr;</span>
+            <input type="text" id="sched-stop-time" placeholder="19:00" required readonly style="background:#f8fafc; font-family:var(--font-mono); font-size:12px;">
+          </div>
+          <span class="field-hint">Start time &amp; Stop time evaluated against UTC clock during periodic 60s governance scans.</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons & Policy Presets -->
+      <div class="schedule-form-actions-bar">
+        <div class="actions-left">
+          <button type="submit" id="btn-submit-schedule" class="btn-blue-action">
+            <span id="btn-submit-text">Create schedule</span>
+          </button>
+          <button type="button" id="btn-cancel-edit" class="btn-secondary-action" style="display: none;" onclick="cancelEditMode()">
+            Cancel
+          </button>
+        </div>
+
+        <div class="presets-group">
+          <span class="presets-label">Quick Presets:</span>
+          <button type="button" class="btn-preset-pill btn-preset-danger" onclick="setSchedulePreset('test_breach')">
+            🚨 Immediate Breach (Past Stop Time)
+          </button>
+          <button type="button" class="btn-preset-pill" onclick="setSchedulePreset('business_hours')">
+            ⏰ Working Hours (09:00 - 18:00)
+          </button>
+          <button type="button" class="btn-preset-pill" onclick="setSchedulePreset('today_date')">
+            📅 Today Calendar Window
+          </button>
+        </div>
+      </div>
+
+      <!-- Feature Callout Notice -->
+      <div class="schedule-notice-box">
+        <div class="notice-content">
+          <strong>Instant Breach Notification &amp; 1-Click Phone Control:</strong>
+          When any instance operates past its scheduled stop time or exceeds maximum running hours, an alert is broadcasted to your <strong>ntfy phone app</strong>, <strong>SMS</strong>, and <strong>Email</strong> with a standard chime. When the grace period ends without action, the loud siren buzzer sound is dispatched to your phone and automated shutdown executes to eliminate cost leakage.
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Active Schedules Table -->
+  <div class="card-white-box" style="padding: 0; overflow: hidden; margin-top: 24px;">
+    <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0;">Configured Cloud Workload Schedules</h3>
+        <p style="font-size: 12.5px; color: var(--text-muted); margin: 2px 0 0 0;">Active policies governing off-hours shutdowns and maximum continuous uptime.</p>
+      </div>
+      <button class="btn-secondary-action" onclick="loadSchedulesTable()" style="font-size: 12px; padding: 6px 12px;">
+        Refresh
+      </button>
+    </div>
+
+    <!-- Responsive Table Container -->
+    <div class="table-responsive">
+      <table class="clean-resource-table">
+        <thead>
+          <tr style="background-color: #ffffff;">
+            <th>Resource</th>
+            <th>Scheduled Window</th>
+            <th>Scheduled Stop</th>
+            <th>Max Runtime</th>
+            <th>Status</th>
+            <th style="text-align: right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="schedules-table-body">
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted" style="padding: 32px;">
+              Loading configured schedules...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let availableResources = [];
+let allSchedules = [];
+let activeMode = 'daily'; // 'daily' or 'date'
+
+document.addEventListener('DOMContentLoaded', () => {
+  populateHourMinuteDropdowns();
+  initDatePickersToToday();
+  loadResourcesDropdown();
+  loadSchedulesTable();
+  syncDailyInputs();
+  calcMaxRuntimeHours();
+});
+
+// Populate 00-23 hours and 00-55 minutes in selects
+function populateHourMinuteDropdowns() {
+  const pad = (n) => n.toString().padStart(2, '0');
+  
+  const hourSelects = [
+    'sched-daily-start-h', 'sched-daily-stop-h',
+    'sched-date-start-h', 'sched-date-stop-h'
+  ];
+  const minuteSelects = [
+    'sched-daily-start-m', 'sched-daily-stop-m',
+    'sched-date-start-m', 'sched-date-stop-m'
+  ];
+
+  let hoursHtml = '';
+  for (let i = 0; i < 24; i++) {
+    hoursHtml += `<option value="${pad(i)}">${pad(i)}:00</option>`;
+  }
+
+  let minsHtml = '';
+  for (let i = 0; i < 60; i += 5) {
+    minsHtml += `<option value="${pad(i)}">${pad(i)}</option>`;
+  }
+
+  hourSelects.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = hoursHtml;
+  });
+
+  minuteSelects.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = minsHtml;
+  });
+
+  // Set default hours: 09:00 start, 19:00 stop
+  document.getElementById('sched-daily-start-h').value = '09';
+  document.getElementById('sched-daily-start-m').value = '00';
+  document.getElementById('sched-daily-stop-h').value = '19';
+  document.getElementById('sched-daily-stop-m').value = '00';
+
+  document.getElementById('sched-date-start-h').value = '09';
+  document.getElementById('sched-date-start-m').value = '00';
+  document.getElementById('sched-date-stop-h').value = '19';
+  document.getElementById('sched-date-stop-m').value = '00';
+}
+
+function initDatePickersToToday() {
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, '0');
+  const yyyy = now.getFullYear();
+  const mm = pad(now.getMonth() + 1);
+  const dd = pad(now.getDate());
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  document.getElementById('sched-date-start-d').value = todayStr;
+  document.getElementById('sched-date-stop-d').value = todayStr;
+}
+
+function switchScheduleMode(mode) {
+  activeMode = mode;
+  const tabDaily = document.getElementById('tab-mode-daily');
+  const tabDate = document.getElementById('tab-mode-date');
+  const ctlDaily = document.getElementById('controls-daily-mode');
+  const ctlDate = document.getElementById('controls-date-mode');
+
+  if (mode === 'daily') {
+    tabDaily.classList.add('active');
+    tabDate.classList.remove('active');
+    ctlDaily.style.display = 'block';
+    ctlDate.style.display = 'none';
+    syncDailyInputs();
+  } else {
+    tabDate.classList.add('active');
+    tabDaily.classList.remove('active');
+    ctlDaily.style.display = 'none';
+    ctlDate.style.display = 'block';
+    syncDateInputs();
+  }
+}
+
+function syncDailyInputs() {
+  const sh = document.getElementById('sched-daily-start-h').value;
+  const sm = document.getElementById('sched-daily-start-m').value;
+  const eh = document.getElementById('sched-daily-stop-h').value;
+  const em = document.getElementById('sched-daily-stop-m').value;
+
+  const startStr = `${sh}:${sm}`;
+  const stopStr = `${eh}:${em}`;
+
+  document.getElementById('sched-start-time').value = startStr;
+  document.getElementById('sched-stop-time').value = stopStr;
+}
+
+function syncDateInputs() {
+  const sDate = document.getElementById('sched-date-start-d').value;
+  const sh = document.getElementById('sched-date-start-h').value;
+  const sm = document.getElementById('sched-date-start-m').value;
+
+  const eDate = document.getElementById('sched-date-stop-d').value;
+  const eh = document.getElementById('sched-date-stop-h').value;
+  const em = document.getElementById('sched-date-stop-m').value;
+
+  // Format as DD-MM-YYYY HH:MM for backend parser
+  function formatDdMmYyyy(val) {
+    if (!val) return '';
+    const parts = val.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return val;
+  }
+
+  const startFormatted = `${formatDdMmYyyy(sDate)} ${sh}:${sm}`;
+  const stopFormatted = `${formatDdMmYyyy(eDate)} ${eh}:${em}`;
+
+  document.getElementById('sched-start-time').value = startFormatted;
+  document.getElementById('sched-stop-time').value = stopFormatted;
+}
+
+function calcMaxRuntimeHours() {
+  const h = parseFloat(document.getElementById('sched-max-runtime-hours').value) || 0;
+  const m = parseFloat(document.getElementById('sched-max-runtime-minutes').value) || 0;
+  const total = roundToTwo(h + (m / 60.0));
+
+  document.getElementById('sched-max-runtime').value = total;
+  document.getElementById('runtime-decimal-preview').textContent = total;
+}
+
+function roundToTwo(num) {
+  return +(Math.round(num + "e+2")  + "e-2");
+}
+
+async function loadResourcesDropdown() {
+  const sel = document.getElementById('sched-resource-select');
+  try {
+    const res = await fetch('/api/resources');
+    const data = await res.json();
+    availableResources = data.resources || [];
+
+    if (availableResources.length === 0) {
+      sel.innerHTML = '<option value="">No resources discovered yet (Visit Resources tab to scan)</option>';
+      return;
+    }
+
+    sel.innerHTML = '<option value="">Choose instance...</option>' + 
+      availableResources.map(r => {
+        const provIcon = r.provider === 'Azure' ? 'Azure' : 'AWS';
+        return `<option value="${r.id}">[${provIcon}] ${escapeHtml(r.instance_name)} (${r.instance_id})</option>`;
+      }).join('');
+  } catch (err) {
+    console.error('Error fetching resources:', err);
+  }
+}
+
+async function loadSchedulesTable() {
+  const tbody = document.getElementById('schedules-table-body');
+  try {
+    const res = await fetch('/api/schedules');
+    const data = await res.json();
+    allSchedules = data.schedules || [];
+
+    if (allSchedules.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-muted" style="padding: 36px;">
+            No scheduling policies created yet. Choose a resource above, set hours and date, and click <strong>Create schedule</strong>.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = allSchedules.map(s => {
+      const resObj = availableResources.find(r => r.id === s.resource_id);
+      const name = resObj ? resObj.instance_name : `Resource #${s.resource_id}`;
+      const instId = resObj ? resObj.instance_id : '';
+      const prov = resObj ? resObj.provider : 'Cloud';
+      const provBadge = prov === 'Azure' ? '<span class="prov-tag-azure">Azure</span>' : '<span class="prov-tag-aws">AWS</span>';
+
+      return `
+        <tr id="row-sched-${s.id}">
+          <td style="padding: 14px 20px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              ${provBadge}
+              <span style="font-weight: 700; color: #111827;">${escapeHtml(name)}</span>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 11px; color: #2563eb; margin-top:2px;">${instId}</div>
+          </td>
+          <td style="padding: 14px 20px;">
+            <div style="font-family: var(--font-mono); font-size: 12.5px; font-weight:600; color: #111827;">${s.start_time}</div>
+            <div style="font-size: 11px; color: #64748b;">Start time / date</div>
+          </td>
+          <td style="padding: 14px 20px;">
+            <div style="font-family: var(--font-mono); font-size: 12.5px; font-weight:700; color: #dc2626;">${s.end_time}</div>
+            <div style="font-size: 11px; color: #64748b;">Stop time / date</div>
+          </td>
+          <td style="padding: 14px 20px;">
+            <span style="font-weight:700; color:#475569;">${s.max_runtime_hours} hrs</span>
+          </td>
+          <td style="padding: 14px 20px;">
+            <span style="display:inline-block; padding: 3px 9px; border-radius: 9999px; font-size: 11px; font-weight: 700; ${s.is_active ? 'background-color:#ecfdf5; color:#047857; border:1px solid #a7f3d0;' : 'background-color:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb;'}">
+              ${s.is_active ? '● Active' : '○ Paused'}
+            </span>
+          </td>
+          <td style="padding: 14px 20px; text-align: right;">
+            <div style="display: inline-flex; gap: 6px;">
+              <button type="button" class="btn-action-edit" onclick="editSchedule(${s.id})" title="Edit Date, Time, Hours, Minutes">
+                Edit
+              </button>
+              <button type="button" class="btn-action-delete" onclick="deleteSchedule(${s.id})" title="Delete schedule">
+                Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-rose" style="padding:20px;">Error loading schedules: ${err.message}</td></tr>`;
+  }
+}
+
+// Edit schedule: pre-populates form with granular date, time, hours, minutes
+function editSchedule(scheduleId) {
+  const sched = allSchedules.find(s => s.id === scheduleId);
+  if (!sched) return;
+
+  // Set edit state
+  document.getElementById('editing-schedule-id').value = sched.id;
+  document.getElementById('editing-indicator').style.display = 'flex';
+  document.getElementById('editing-sched-id').textContent = `#${sched.id}`;
+
+  document.getElementById('form-title').textContent = `Modify & Edit Schedule (#${sched.id})`;
+  document.getElementById('btn-submit-text').textContent = 'Update schedule';
+  document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
+
+  // Set Resource
+  document.getElementById('sched-resource-select').value = sched.resource_id;
+
+  // Parse max runtime hours and minutes
+  const maxHours = parseFloat(sched.max_runtime_hours) || 8.0;
+  const wholeHours = Math.floor(maxHours);
+  const remainderMins = Math.round((maxHours - wholeHours) * 60);
+
+  document.getElementById('sched-max-runtime-hours').value = wholeHours;
+  const minSelect = document.getElementById('sched-max-runtime-minutes');
+  // Match closest 0, 15, 30, 45
+  if (remainderMins >= 40) minSelect.value = '45';
+  else if (remainderMins >= 25) minSelect.value = '30';
+  else if (remainderMins >= 10) minSelect.value = '15';
+  else minSelect.value = '0';
+  calcMaxRuntimeHours();
+
+  // Check if string contains date or clock time
+  const startStr = (sched.start_time || '').trim();
+  const stopStr = (sched.end_time || '').trim();
+
+  const hasDate = startStr.includes('-') || startStr.includes('/') || stopStr.includes('-') || stopStr.includes('/');
+
+  if (hasDate) {
+    switchScheduleMode('date');
+    // Parse date components
+    parseAndSetDateControls(startStr, 'start');
+    parseAndSetDateControls(stopStr, 'stop');
+    syncDateInputs();
+  } else {
+    switchScheduleMode('daily');
+    parseAndSetDailyControls(startStr, 'start');
+    parseAndSetDailyControls(stopStr, 'stop');
+    syncDailyInputs();
+  }
+
+  // Smooth scroll up to form
+  document.querySelector('.card-schedule-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function parseAndSetDailyControls(timeStr, prefix) {
+  const parts = timeStr.split(':');
+  const h = parts[0] ? parts[0].padStart(2, '0') : '09';
+  const m = parts[1] ? parts[1].padStart(2, '0') : '00';
+
+  const hEl = document.getElementById(`sched-daily-${prefix}-h`);
+  const mEl = document.getElementById(`sched-daily-${prefix}-m`);
+  if (hEl) hEl.value = h;
+  if (mEl) {
+    // Round to nearest 5 min
+    const minNum = Math.round(parseInt(m) / 5) * 5;
+    mEl.value = (minNum % 60).toString().padStart(2, '0');
+  }
+}
+
+function parseAndSetDateControls(datetimeStr, prefix) {
+  // Support DD-MM-YYYY HH:MM or YYYY-MM-DD HH:MM
+  const parts = datetimeStr.split(' ');
+  const datePart = parts[0] || '';
+  const timePart = parts[1] || '09:00';
+
+  if (datePart) {
+    const dParts = datePart.split(/[-/]/);
+    let yyyy = new Date().getFullYear();
+    let mm = '01';
+    let dd = '01';
+
+    if (dParts.length === 3) {
+      if (dParts[0].length === 4) {
+        // YYYY-MM-DD
+        yyyy = dParts[0]; mm = dParts[1]; dd = dParts[2];
+      } else {
+        // DD-MM-YYYY
+        dd = dParts[0]; mm = dParts[1]; yyyy = dParts[2];
+      }
+      const isoDate = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+      const dateInput = document.getElementById(`sched-date-${prefix}-d`);
+      if (dateInput) dateInput.value = isoDate;
+    }
+  }
+
+  const tParts = timePart.split(':');
+  const h = tParts[0] ? tParts[0].padStart(2, '0') : '09';
+  const m = tParts[1] ? tParts[1].padStart(2, '0') : '00';
+
+  const hEl = document.getElementById(`sched-date-${prefix}-h`);
+  const mEl = document.getElementById(`sched-date-${prefix}-m`);
+  if (hEl) hEl.value = h;
+  if (mEl) {
+    const minNum = Math.round(parseInt(m) / 5) * 5;
+    mEl.value = (minNum % 60).toString().padStart(2, '0');
+  }
+}
+
+function cancelEditMode() {
+  document.getElementById('editing-schedule-id').value = '';
+  const indicator = document.getElementById('editing-indicator');
+  if (indicator) indicator.style.display = 'none';
+  const title = document.getElementById('form-title');
+  if (title) title.textContent = 'Create Resource Schedule';
+  const submitText = document.getElementById('btn-submit-text');
+  if (submitText) submitText.textContent = 'Create schedule';
+  const cancelBtn = document.getElementById('btn-cancel-edit');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+
+  // Reset defaults
+  setSchedulePreset('business_hours');
+}
+
+async function handleSaveSchedule(e) {
+  e.preventDefault();
+  const editingId = document.getElementById('editing-schedule-id').value;
+  const isEditing = Boolean(editingId);
+
+  const resourceId = parseInt(document.getElementById('sched-resource-select').value);
+  if (!resourceId) {
+    showBanner('Please select a target cloud resource.', 'error');
+    return;
+  }
+
+  const startTime = document.getElementById('sched-start-time').value.trim();
+  const stopTime = document.getElementById('sched-stop-time').value.trim();
+  const maxRuntime = parseFloat(document.getElementById('sched-max-runtime').value) || 8.0;
+
+  const payload = {
+    resource_id: resourceId,
+    start_time: startTime,
+    end_time: stopTime,
+    stop_time: stopTime,
+    max_runtime_hours: maxRuntime,
+    is_active: true
+  };
+
+  const submitBtn = document.getElementById('btn-submit-schedule');
+  const submitText = document.getElementById('btn-submit-text');
+  if (submitBtn) submitBtn.disabled = true;
+  if (submitText) {
+    submitText.textContent = 'Saving...';
+  } else if (submitBtn) {
+    submitBtn.innerHTML = '<span id="btn-submit-text">Saving...</span>';
+  }
+
+  try {
+    const url = isEditing ? `/api/schedules/${editingId}` : '/api/schedules';
+    const method = isEditing ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (data.breach_alert_sent) {
+        showBanner(
+          `🚨 Schedule saved! Operating stop time is exceeded — initial alert with grace period countdown dispatched to your phone (ntfy). Loud buzzer alarm sounds on phone if grace period ends!`,
+          'danger'
+        );
+      } else {
+        showBanner(data.message || 'Schedule policy saved successfully.', 'success');
+      }
+
+      cancelEditMode();
+      loadSchedulesTable();
+    } else {
+      showBanner(`Error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showBanner(`Failed to save schedule: ${err.message}`, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span id="btn-submit-text">${isEditing ? 'Update schedule' : 'Create schedule'}</span>`;
+    }
+  }
+}
+
+async function deleteSchedule(scheduleId) {
+  if (!confirm('Are you sure you want to remove this schedule policy?')) return;
+  try {
+    const res = await fetch(`/api/schedules/${scheduleId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showBanner('Schedule deleted successfully.', 'success');
+      loadSchedulesTable();
+    } else {
+      showBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+  }
+}
+
+function setSchedulePreset(type) {
+  const now = new Date();
+  const pad = (n) => n.toString().padStart(2, '0');
+  const d = pad(now.getDate());
+  const m = pad(now.getMonth() + 1);
+  const y = now.getFullYear();
+
+  if (type === 'business_hours') {
+    switchScheduleMode('daily');
+    document.getElementById('sched-daily-start-h').value = '09';
+    document.getElementById('sched-daily-start-m').value = '00';
+    document.getElementById('sched-daily-stop-h').value = '18';
+    document.getElementById('sched-daily-stop-m').value = '00';
+    document.getElementById('sched-max-runtime-hours').value = '8';
+    document.getElementById('sched-max-runtime-minutes').value = '0';
+    syncDailyInputs();
+    calcMaxRuntimeHours();
+  } else if (type === 'today_date') {
+    switchScheduleMode('date');
+    initDatePickersToToday();
+    document.getElementById('sched-date-start-h').value = '09';
+    document.getElementById('sched-date-start-m').value = '00';
+    document.getElementById('sched-date-stop-h').value = '19';
+    document.getElementById('sched-date-stop-m').value = '00';
+    document.getElementById('sched-max-runtime-hours').value = '8';
+    document.getElementById('sched-max-runtime-minutes').value = '0';
+    syncDateInputs();
+    calcMaxRuntimeHours();
+  } else if (type === 'test_breach') {
+    // Set stop time 5 minutes in past to guarantee immediate breach detection
+    const past = new Date(Date.now() - 5 * 60 * 1000);
+    const start = new Date(Date.now() - 60 * 60 * 1000);
+
+    switchScheduleMode('date');
+    initDatePickersToToday();
+    document.getElementById('sched-date-start-h').value = pad(start.getHours());
+    document.getElementById('sched-date-start-m').value = pad(Math.floor(start.getMinutes() / 5) * 5);
+    document.getElementById('sched-date-stop-h').value = pad(past.getHours());
+    document.getElementById('sched-date-stop-m').value = pad(Math.floor(past.getMinutes() / 5) * 5);
+    document.getElementById('sched-max-runtime-hours').value = '0';
+    document.getElementById('sched-max-runtime-minutes').value = '30';
+    syncDateInputs();
+    calcMaxRuntimeHours();
+    showBanner('⚡ Preset active: Stop time set in past. Saving will trigger immediate violation alert to phone & email!', 'info');
+  }
+}
+
+function showBanner(msg, type = 'info') {
+  const banner = document.getElementById('schedule-alert-banner');
+  banner.style.display = 'block';
+  banner.className = `alert-banner banner-${type}`;
+  banner.innerHTML = msg;
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => {
+    // Auto-hide non-danger banners after 6s
+    if (type !== 'danger') {
+      banner.style.display = 'none';
+    }
+  }, 6000);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

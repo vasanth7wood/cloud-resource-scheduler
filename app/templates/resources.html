@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Resources | Cloud Scheduler{% endblock %}
+
+{% block content %}
+<!-- Top Blue Navigation Bar -->
+<nav class="top-blue-navbar">
+  <div class="navbar-left-group">
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-brand-title">Cloud Scheduler</a>
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-nav-link">Dashboard</a>
+    <a href="{{ url_for('dashboard.view_resources') }}" class="navbar-nav-link active">Resources</a>
+    <a href="{{ url_for('dashboard.view_schedules') }}" class="navbar-nav-link">Schedules</a>
+    <a href="{{ url_for('dashboard.view_alerts') }}" class="navbar-nav-link">Alerts</a>
+    <a href="{{ url_for('dashboard.view_audit_logs') }}" class="navbar-nav-link">Audit logs</a>
+    <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="navbar-nav-link">Cloud Accounts</a>
+  </div>
+
+  <div class="navbar-right-group">
+    <span class="navbar-username">{{ user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-navbar-logout">Logout</a>
+  </div>
+</nav>
+
+<!-- Page Content -->
+<main class="page-standard-container">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; flex-wrap: wrap; gap: 10px;">
+    <div>
+      <h1 class="page-heading-title" style="margin-bottom: 4px;">Cloud Resources</h1>
+      <p style="color: #6b7280; font-size: 13px; margin: 0;">Multi-cloud compute instance inventory across AWS, Azure, and GCP.</p>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="btn-secondary-action">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Connect Cloud Account
+      </a>
+      <button class="btn-danger-action" onclick="clearAllResources()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        Purge Inventory
+      </button>
+      <button class="btn-blue-action" onclick="scanResources()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Discover Resources
+      </button>
+    </div>
+  </div>
+
+  <!-- Resources Table Card -->
+  <div class="card-resource-overview" style="padding: 0; overflow: hidden;">
+    <table class="clean-resource-table">
+      <thead>
+        <tr style="background-color: #fafbfc;">
+          <th style="padding: 14px 20px;">Provider</th>
+          <th style="padding: 14px 20px;">Instance</th>
+          <th style="padding: 14px 20px;">Region / Type</th>
+          <th style="padding: 14px 20px;">Status</th>
+          <th style="padding: 14px 20px;">IP Address</th>
+          <th style="padding: 14px 20px;">Uptime</th>
+          <th style="padding: 14px 20px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="page-resources-tbody">
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted" style="padding: 36px;">
+            No resources discovered yet. Connect an <strong>AWS</strong>, <strong>Azure</strong>, or <strong>GCP</strong> account and click <strong>Discover Resources</strong> to begin monitoring.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  loadResources();
+});
+
+async function loadResources() {
+  const tbody = document.getElementById('page-resources-tbody');
+  try {
+    const res = await fetch('/api/resources');
+    const data = await res.json();
+    const resources = data.resources || [];
+
+    if (resources.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-muted" style="padding: 36px;">
+            No resources discovered yet. Connect an <strong>AWS</strong>, <strong>Azure</strong>, or <strong>GCP</strong> account under <a href="/cloud-accounts" style="color:#1a73e8; font-weight:600;">Cloud Accounts</a> and click <strong>Discover</strong> to begin monitoring.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = resources.map(r => {
+      const isRunning = r.state === 'running';
+      const isTerminated = r.state === 'terminated';
+      const prov = (r.provider || 'AWS').toUpperCase();
+      let provBadge = '';
+      if (prov.includes('AWS')) {
+        provBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:11px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">AWS</span>';
+      } else if (prov.includes('AZURE')) {
+        provBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:11px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Azure</span>';
+      } else {
+        provBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:11px; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;">GCP</span>';
+      }
+
+      let stateBadge = '';
+      if (isRunning) {
+        stateBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color:#ecfdf5; color:#047857;">● Running</span>';
+      } else if (isTerminated) {
+        stateBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color:#fef2f2; color:#b91c1c;">● Terminated</span>';
+      } else {
+        stateBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color:#f3f4f6; color:#6b7280;">● Stopped</span>';
+      }
+
+      let actionButtons = '';
+      if (isRunning) {
+        actionButtons = `
+          <button class="btn-table-action btn-tbl-stop" onclick="stopInstance(${r.id})">Stop</button>
+          <button class="btn-table-action btn-tbl-extend" onclick="extendInstance(${r.id})">+60m</button>
+        `;
+      } else if (isTerminated) {
+        actionButtons = `<span style="font-size: 11px; color: #9ca3af; font-style: italic;">Terminated in AWS</span>`;
+      } else {
+        actionButtons = `<button class="btn-table-action btn-tbl-start" onclick="startInstance(${r.id})">Start</button>`;
+      }
+
+      return `
+        <tr>
+          <td style="padding: 14px 20px;">${provBadge}</td>
+          <td style="padding: 14px 20px;">
+            <div style="font-weight: 600; color: #111827;">${escapeHtml(r.instance_name)}</div>
+            <div style="font-family: var(--font-mono); font-size: 11px; color: #1a73e8;">${r.instance_id}</div>
+          </td>
+          <td style="padding: 14px 20px;">
+            <div>${r.region}</div>
+            <div style="font-size: 11px; color: #6b7280;">${r.instance_type}</div>
+          </td>
+          <td style="padding: 14px 20px;">${stateBadge}</td>
+          <td style="padding: 14px 20px; font-family: var(--font-mono); font-size: 12px;">
+            ${r.public_ip || r.private_ip || 'None'}
+          </td>
+          <td style="padding: 14px 20px; font-family: var(--font-mono); font-size: 13px;">
+            ${isRunning ? r.uptime_hours + ' hrs' : '0.0 hrs'}
+          </td>
+          <td style="padding: 14px 20px;">
+            <div style="display: flex; gap: 6px; align-items: center;">
+              ${actionButtons}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-rose" style="padding:20px;">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function scanResources() {
+  try {
+    const res = await fetch('/api/resources/scan', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      loadResources();
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function clearAllResources() {
+  if (!confirm('Are you sure you want to clear all discovered resources from the inventory? This will return the dashboard to a fresh empty state.')) return;
+  try {
+    const res = await fetch('/api/resources/clear', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      loadResources();
+    } else {
+      alert(data.error);
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function startInstance(id) {
+  try {
+    const res = await fetch(`/api/resources/${id}/start`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.error);
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+  loadResources();
+}
+
+async function stopInstance(id) {
+  try {
+    const res = await fetch(`/api/resources/${id}/stop`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.error);
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+  loadResources();
+}
+
+async function extendInstance(id) {
+  await fetch(`/api/resources/${id}/extend`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({minutes: 60}) });
+  loadResources();
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts & notifications | Cloud Scheduler{% endblock %}
+
+{% block content %}
+<!-- Top Blue Navigation Bar (Matching user screenshot) -->
+<nav class="top-blue-navbar">
+  <div class="navbar-left-group">
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-brand-title">Cloud Scheduler</a>
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-nav-link">Dashboard</a>
+    <a href="{{ url_for('dashboard.view_resources') }}" class="navbar-nav-link">Resources</a>
+    <a href="{{ url_for('dashboard.view_schedules') }}" class="navbar-nav-link">Schedules</a>
+    <a href="{{ url_for('dashboard.view_alerts') }}" class="navbar-nav-link active">Alerts</a>
+    <a href="{{ url_for('dashboard.view_audit_logs') }}" class="navbar-nav-link">Audit logs</a>
+    <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="navbar-nav-link">Cloud Accounts</a>
+  </div>
+
+  <div class="navbar-right-group">
+    <span class="navbar-username">{{ user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-navbar-logout">Logout</a>
+  </div>
+</nav>
+
+<!-- Page Content -->
+<main class="page-standard-container">
+  <h1 class="page-heading-title">Alerts & notifications</h1>
+
+  <!-- Notice Banner -->
+  <div id="alerts-feedback-banner" class="alert-banner" style="display: none; margin-bottom: 20px;"></div>
+
+  <!-- Global Preferences Card (Matching user screenshot) -->
+  <div class="card-audit-feed" style="margin-bottom: 24px;">
+    <div style="margin-bottom: 14px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin: 0;">Global Default Alert Destinations</h3>
+      <p style="font-size: 13px; color: #4b5563; margin: 4px 0 0 0;">
+        Default delivery channels for instances that do not have custom recipient overrides.
+      </p>
+    </div>
+
+    <form id="alert-preferences-form" onsubmit="handleSavePreferences(event)">
+      <div class="alerts-form-grid">
+        <!-- Email Destination -->
+        <div class="form-field" style="margin: 0;">
+          <label for="pref-email-dest">Email destination</label>
+          <div class="field-input-box">
+            <input type="email" id="pref-email-dest" value="{{ user.email }}" required placeholder="user@company.com">
+          </div>
+          <label class="checkbox-label-block">
+            <input type="checkbox" id="pref-email-enabled" checked>
+            <span>Enable email</span>
+          </label>
+        </div>
+
+        <!-- SMS Destination -->
+        <div class="form-field" style="margin: 0;">
+          <label for="pref-sms-dest">SMS destination</label>
+          <div class="field-input-box">
+            <input type="text" id="pref-sms-dest" placeholder="+919025903459" value="+919025903459">
+          </div>
+          <label class="checkbox-label-block">
+            <input type="checkbox" id="pref-sms-enabled" checked>
+            <span>Enable SMS</span>
+          </label>
+        </div>
+
+        <!-- WhatsApp Destination -->
+        <div class="form-field" style="margin: 0;">
+          <label for="pref-wa-dest">WhatsApp destination</label>
+          <div class="field-input-box">
+            <input type="text" id="pref-wa-dest" placeholder="whatsapp:+919025903459" value="whatsapp:+919025903459">
+          </div>
+          <label class="checkbox-label-block">
+            <input type="checkbox" id="pref-wa-enabled" checked>
+            <span>Enable WhatsApp</span>
+          </label>
+        <!-- WhatsApp Quick Connect Info Banner -->
+        <div style="grid-column: 1 / -1; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+          <div style="font-size: 13px; color: #166534;">
+            <strong>💬 WhatsApp Alert Delivery:</strong> Alerts dispatch 1-click links and mobile lockscreen notifications. To enable background API push, connect once to the Twilio sandbox.
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <a href="/api/alerts/whatsapp/connect" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background-color: #25d366; color: white; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 6px; text-decoration: none; box-shadow: 0 2px 4px rgba(37,211,102,0.3);">
+              📱 Connect WhatsApp Bot (1-Click)
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-blue-action" id="btn-save-pref">Save preferences</button>
+    </form>
+  </div>
+
+  <!-- Dedicated Per-Instance Alert Configuration Card -->
+  <div class="card-white-box" style="margin-bottom: 24px; border-top: 4px solid #3b82f6;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+      <div>
+        <h2 style="font-size: 18px; font-weight: 800; color: #111827; margin: 0;">
+          🎯 Instance-Specific Alert Messages &amp; Routing
+        </h2>
+        <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
+          Send tailored, different messages and route alerts to different phone numbers or emails for each specific cloud workload.
+        </p>
+      </div>
+      <span class="badge-prov" style="background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700;">
+        ⚡ Per-Workload Customization
+      </span>
+    </div>
+
+    <form id="instance-alert-form" onsubmit="handleSaveInstanceAlertConfig(event)">
+      <!-- Row 1: Instance Selector -->
+      <div class="form-row-resource" style="margin-bottom: 18px;">
+        <div class="form-field" style="margin: 0;">
+          <label for="inst-alert-select" style="font-weight: 700; color: #1e293b;">
+            Select Target Cloud Instance <span class="required-star">*</span>
+          </label>
+          <div class="field-input-box">
+            <select id="inst-alert-select" required onchange="handleInstanceSelected()">
+              <option value="">Loading cloud instances...</option>
+            </select>
+          </div>
+          <span class="field-hint">Choose which instance you want to configure a custom message and separate recipient for.</span>
+        </div>
+      </div>
+
+      <!-- Row 2: Custom Alert Message / Instruction -->
+      <div class="form-field" style="margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <label for="inst-custom-msg" style="font-weight: 700; color: #1e293b; margin: 0;">
+            Custom Alert Message / Incident Instruction
+          </label>
+          <span style="font-size: 12px; color: #64748b;">Included in phone push, SMS, WhatsApp &amp; Email</span>
+        </div>
+        <textarea id="inst-custom-msg" rows="3" class="date-native-input" style="width: 100%; border: 1px solid var(--border-medium); border-radius: 8px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; resize: vertical;" placeholder="e.g. URGENT: Dev Server past shutdown time! Save all unsaved files and stop immediately. Contact DevOps for questions."></textarea>
+        
+        <!-- Preset pills -->
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+          <span style="font-size: 11.5px; font-weight: 700; color: #64748b; line-height: 24px;">Quick Presets:</span>
+          <button type="button" class="btn-preset-pill" onclick="setMessagePreset('🚨 DEV ALERT: Staging server has run past permitted working hours. Please commit changes and power down.')">
+            Dev Workload Note
+          </button>
+          <button type="button" class="btn-preset-pill" onclick="setMessagePreset('🛑 FINANCE NOTICE: High-cost compute resource running outside business schedule. Immediate stop required to avoid budget overruns.')">
+            High Cost Workload Note
+          </button>
+          <button type="button" class="btn-preset-pill" onclick="setMessagePreset('⚠️ QA BATCH: Overnight test run completed. Workload is now idling — shutdown requested.')">
+            QA/Batch Server Note
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 3: Different Recipient Contacts (Overrides) -->
+      <div style="background-color: #f8fafc; border: 1px solid var(--border-light); border-radius: 10px; padding: 18px; margin-bottom: 20px;">
+        <div style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+          <span>📞 Workload Recipient Overrides</span>
+          <span style="font-size: 11.5px; color: #64748b; font-weight: 500;">(Leave any field blank to use global defaults)</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+          <div class="form-field" style="margin: 0;">
+            <label for="inst-alert-email" style="font-size: 12px;">Specific Email Destination</label>
+            <input type="email" id="inst-alert-email" class="date-native-input" placeholder="e.g. dev-lead@company.com">
+          </div>
+
+          <div class="form-field" style="margin: 0;">
+            <label for="inst-alert-phone" style="font-size: 12px;">Specific SMS Phone Number</label>
+            <input type="text" id="inst-alert-phone" class="date-native-input" placeholder="e.g. +919025903459">
+          </div>
+
+          <div class="form-field" style="margin: 0;">
+            <label for="inst-alert-wa" style="font-size: 12px;">Specific WhatsApp Destination</label>
+            <input type="text" id="inst-alert-wa" class="date-native-input" placeholder="e.g. whatsapp:+919025903459">
+          </div>
+
+          <div class="form-field" style="margin: 0;">
+            <label for="inst-alert-topic" style="font-size: 12px;">Specific ntfy Phone Push Topic</label>
+            <input type="text" id="inst-alert-topic" class="date-native-input" placeholder="e.g. vasanth_cloud_alerts">
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button type="submit" class="btn-blue-action" id="btn-save-inst-alert">
+          <span id="btn-save-inst-text">Save Instance Alert Rule</span>
+        </button>
+
+        <button type="button" class="btn-secondary-action" id="btn-test-inst-alert" onclick="handleSendTestAlertForInstance()" style="border-color: #ea580c; color: #ea580c; background-color: #fff7ed;">
+          ⚡ Send Test Alert With This Message
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Configured Instances Summary Table -->
+  <div class="card-white-box" style="padding: 0; overflow: hidden; margin-bottom: 24px;">
+    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 0;">Workload Alert Message Directory</h3>
+        <p style="font-size: 12px; color: #64748b; margin: 2px 0 0 0;">Overview of active workloads and their configured custom notification rules.</p>
+      </div>
+      <button type="button" class="btn-secondary-action" onclick="loadResourcesDropdown()" style="font-size: 12px; padding: 5px 12px;">
+        Refresh Table
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="clean-resource-table">
+        <thead>
+          <tr style="background-color: #f8fafc;">
+            <th>Instance</th>
+            <th>Tailored Alert Message</th>
+            <th>Dedicated Recipients</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="instances-summary-tbody">
+          <tr>
+            <td colspan="4" class="text-center text-muted" style="padding: 24px;">
+              Loading workload alert directory...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Information Notes Card (Differentiated Slate Accent) -->
+  <div class="card-engine-status" style="padding: 22px 28px;">
+    <ul class="bullet-info-list">
+      <li>• <strong>Custom Messages:</strong> Each instance's specific message is prominently highlighted in phone push (ntfy), SMS, WhatsApp, and HTML email dispatches.</li>
+      <li>• <strong>Separate Routing:</strong> You can assign different phone numbers or developer emails to each cloud instance so alerts reach the right person.</li>
+      <li>• <strong>Single-Click Phone Control:</strong> All dispatches contain 1-click cryptographically signed HMAC stop buttons that power down the instance immediately from mobile.</li>
+    </ul>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let loadedResources = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadPreferences();
+  loadResourcesDropdown();
+});
+
+async function loadPreferences() {
+  try {
+    const res = await fetch('/api/alerts/preferences');
+    const data = await res.json();
+    if (data.success && data.preferences) {
+      const p = data.preferences;
+      if (p.email_dest) document.getElementById('pref-email-dest').value = p.email_dest;
+      document.getElementById('pref-email-enabled').checked = p.email_enabled;
+      if (p.sms_dest) document.getElementById('pref-sms-dest').value = p.sms_dest;
+      document.getElementById('pref-sms-enabled').checked = p.sms_enabled;
+      if (p.whatsapp_dest) document.getElementById('pref-wa-dest').value = p.whatsapp_dest;
+      document.getElementById('pref-wa-enabled').checked = p.whatsapp_enabled;
+    }
+  } catch (err) {
+    console.error('Error fetching preferences:', err);
+  }
+}
+
+async function handleSavePreferences(e) {
+  e.preventDefault();
+  const payload = {
+    email_dest: document.getElementById('pref-email-dest').value.trim(),
+    email_enabled: document.getElementById('pref-email-enabled').checked,
+    sms_dest: document.getElementById('pref-sms-dest').value.trim(),
+    sms_enabled: document.getElementById('pref-sms-enabled').checked,
+    whatsapp_dest: document.getElementById('pref-wa-dest').value.trim(),
+    whatsapp_enabled: document.getElementById('pref-wa-enabled').checked
+  };
+
+  const btn = document.getElementById('btn-save-pref');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/alerts/preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNoticeBanner('✅ Global alert preferences updated successfully.', 'success');
+    } else {
+      showNoticeBanner(`Error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showNoticeBanner(`Failed to save: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Per-Instance Custom Alert Configurations
+// -----------------------------------------------------------------------------
+async function loadResourcesDropdown() {
+  const sel = document.getElementById('inst-alert-select');
+  const tbody = document.getElementById('instances-summary-tbody');
+
+  try {
+    const res = await fetch('/api/resources');
+    const data = await res.json();
+    loadedResources = data.resources || [];
+
+    if (loadedResources.length === 0) {
+      sel.innerHTML = '<option value="">No resources discovered yet (Visit Resources tab to scan)</option>';
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px;">No cloud resources found.</td></tr>';
+      return;
+    }
+
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">Select a workload to configure...</option>' + 
+      loadedResources.map(r => {
+        const provBadge = r.provider === 'Azure' ? 'Azure' : 'AWS';
+        return `<option value="${r.id}">[${provBadge}] ${escapeHtml(r.instance_name)} (${r.instance_id})</option>`;
+      }).join('');
+
+    if (currentVal) {
+      sel.value = currentVal;
+    } else if (loadedResources.length > 0) {
+      sel.value = loadedResources[0].id;
+      handleInstanceSelected();
+    }
+
+    renderSummaryTable();
+  } catch (err) {
+    console.error('Error fetching resources:', err);
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center text-rose" style="padding:20px;">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function handleInstanceSelected() {
+  const sel = document.getElementById('inst-alert-select');
+  const resId = parseInt(sel.value);
+  if (!resId) return;
+
+  const target = loadedResources.find(r => r.id === resId);
+  if (!target) return;
+
+  document.getElementById('inst-custom-msg').value = target.custom_alert_message || '';
+  document.getElementById('inst-alert-email').value = target.alert_email || '';
+  document.getElementById('inst-alert-phone').value = target.alert_phone || '';
+  document.getElementById('inst-alert-wa').value = target.alert_whatsapp || '';
+  document.getElementById('inst-alert-topic').value = target.alert_topic || '';
+}
+
+function selectInstanceForEdit(resId) {
+  const sel = document.getElementById('inst-alert-select');
+  sel.value = resId;
+  handleInstanceSelected();
+  document.querySelector('.card-white-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setMessagePreset(txt) {
+  document.getElementById('inst-custom-msg').value = txt;
+}
+
+async function handleSaveInstanceAlertConfig(e) {
+  e.preventDefault();
+  const resId = parseInt(document.getElementById('inst-alert-select').value);
+  if (!resId) {
+    showNoticeBanner('Please select a target instance first.', 'error');
+    return;
+  }
+
+  const payload = {
+    custom_alert_message: document.getElementById('inst-custom-msg').value.trim(),
+    alert_email: document.getElementById('inst-alert-email').value.trim(),
+    alert_phone: document.getElementById('inst-alert-phone').value.trim(),
+    alert_whatsapp: document.getElementById('inst-alert-wa').value.trim(),
+    alert_topic: document.getElementById('inst-alert-topic').value.trim()
+  };
+
+  const btn = document.getElementById('btn-save-inst-alert');
+  const btnText = document.getElementById('btn-save-inst-text');
+  btn.disabled = true;
+  if (btnText) btnText.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(`/api/resources/${resId}/alert-config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showNoticeBanner(`🎉 ${data.message}`, 'success');
+      // Update local cache
+      const cached = loadedResources.find(r => r.id === resId);
+      if (cached) {
+        Object.assign(cached, payload);
+      }
+      renderSummaryTable();
+    } else {
+      showNoticeBanner(`Error: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showNoticeBanner(`Failed to save: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    if (btnText) btnText.textContent = 'Save Instance Alert Rule';
+  }
+}
+
+async function handleSendTestAlertForInstance() {
+  const resId = parseInt(document.getElementById('inst-alert-select').value);
+  if (!resId) {
+    showNoticeBanner('Please select an instance first.', 'error');
+    return;
+  }
+
+  const currentMsg = document.getElementById('inst-custom-msg').value.trim();
+  const currentEmail = document.getElementById('inst-alert-email').value.trim();
+  const currentPhone = document.getElementById('inst-alert-phone').value.trim();
+  const currentWa = document.getElementById('inst-alert-wa').value.trim();
+
+  const testBtn = document.getElementById('btn-test-inst-alert');
+  testBtn.disabled = true;
+  testBtn.textContent = 'Dispatching test alert...';
+
+  try {
+    const res = await fetch(`/api/resources/${resId}/trigger-alert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        custom_message: currentMsg,
+        email: currentEmail,
+        phone: currentPhone,
+        whatsapp: currentWa
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const waLink = data.whatsapp_link || (data.dispatch && (data.dispatch.whatsapp_link || (data.dispatch.channels && data.dispatch.channels.whatsapp && data.dispatch.channels.whatsapp.whatsapp_link)));
+      const waButtonsHtml = waLink ? `
+        <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <a href="${waLink}" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background-color:#25d366; color:white; font-weight:700; font-size:13px; padding:8px 16px; border-radius:8px; text-decoration:none; box-shadow:0 2px 8px rgba(37,211,102,0.4);">
+            💬 Open Alert in WhatsApp →
+          </a>
+          <a href="/api/alerts/whatsapp/connect" target="_blank" style="display:inline-flex; align-items:center; gap:6px; background-color:#128c7e; color:white; font-size:12px; font-weight:600; padding:8px 14px; border-radius:8px; text-decoration:none;">
+            📱 Connect Twilio Bot (+17372508034)
+          </a>
+        </div>
+      ` : '';
+      showNoticeBanner(
+        `<div>🚨 <strong>Test Alert Dispatched!</strong> Dispatched across phone push (ntfy), SMS, WhatsApp &amp; Email. Buzzer sounds on mobile only!</div>${waButtonsHtml}`,
+        'danger'
+      );
+    } else {
+      showNoticeBanner(`Failed to send test alert: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    showNoticeBanner(`Test alert error: ${err.message}`, 'error');
+  } finally {
+    testBtn.disabled = false;
+    testBtn.textContent = '⚡ Send Test Alert With This Message';
+  }
+}
+
+function renderSummaryTable() {
+  const tbody = document.getElementById('instances-summary-tbody');
+  if (!loadedResources || loadedResources.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:20px;">No cloud resources found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = loadedResources.map(r => {
+    const provBadge = r.provider === 'Azure' ? '<span class="prov-tag-azure">Azure</span>' : '<span class="prov-tag-aws">AWS</span>';
+    const msg = r.custom_alert_message ? 
+      `<div style="font-weight:600; color:#1e293b;">"${escapeHtml(r.custom_alert_message)}"</div>` : 
+      '<span style="color:#94a3b8; font-style:italic;">Default policy violation message</span>';
+
+    const recipients = [];
+    if (r.alert_email) recipients.push(`✉️ ${escapeHtml(r.alert_email)}`);
+    if (r.alert_phone) recipients.push(`📱 ${escapeHtml(r.alert_phone)}`);
+    if (r.alert_whatsapp) recipients.push(`💬 ${escapeHtml(r.alert_whatsapp)}`);
+    if (r.alert_topic) recipients.push(`🔔 ntfy: ${escapeHtml(r.alert_topic)}`);
+
+    const recipHtml = recipients.length > 0 ? 
+      recipients.map(x => `<div style="font-size:11.5px; color:#475569; margin-top:2px;">${x}</div>`).join('') :
+      '<span style="font-size:11.5px; color:#94a3b8;">Uses Global Defaults</span>';
+
+    return `
+      <tr>
+        <td style="padding: 12px 18px;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${provBadge}
+            <strong style="color:#111827;">${escapeHtml(r.instance_name)}</strong>
+          </div>
+          <div style="font-family:var(--font-mono); font-size:11px; color:#2563eb; margin-top:2px;">${escapeHtml(r.instance_id)}</div>
+        </td>
+        <td style="padding: 12px 18px; max-width: 380px;">
+          ${msg}
+        </td>
+        <td style="padding: 12px 18px;">
+          ${recipHtml}
+        </td>
+        <td style="padding: 12px 18px; text-align: right;">
+          <div style="display:inline-flex; gap:6px;">
+            <button type="button" class="btn-action-edit" onclick="selectInstanceForEdit(${r.id})" title="Edit custom message">
+              Configure
+            </button>
+            <button type="button" class="btn-secondary-action" onclick="quickTestAlert(${r.id})" style="font-size:11px; padding:4px 8px; color:#ea580c; border-color:#fdba74;" title="Test dispatch">
+              Test
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function quickTestAlert(resId) {
+  selectInstanceForEdit(resId);
+  await handleSendTestAlertForInstance();
+}
+
+function showNoticeBanner(msg, type = 'info') {
+  const banner = document.getElementById('alerts-feedback-banner');
+  banner.style.display = 'block';
+  banner.className = `alert-banner banner-${type}`;
+  banner.innerHTML = msg;
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => {
+    if (type !== 'danger') {
+      banner.style.display = 'none';
+    }
+  }, 7000);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

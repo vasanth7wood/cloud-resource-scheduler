@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account | CloudResourceScheduler{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+  <!-- Top Header Bar with Brand Logo -->
+  <header class="auth-header-bar">
+    <div class="brand-logo-container brand-dark-text">
+      <div class="brand-icon-box">
+        <div class="brand-icon-bars">
+          <div class="brand-bar b1"></div>
+          <div class="brand-bar b2"></div>
+          <div class="brand-bar b3"></div>
+        </div>
+      </div>
+      <div class="brand-text-block">
+        <span class="brand-name">CloudResource</span>
+        <span class="brand-tag">SCHEDULER</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Split-Card Container -->
+  <main class="auth-center-container">
+    <div class="split-auth-card">
+      
+      <!-- Left Hero Half (Modern Midnight Slate) -->
+      <section class="auth-hero-half">
+        <svg class="hero-concentric-waves" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="200" cy="200" r="180" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 4"/>
+          <circle cx="200" cy="200" r="140" stroke="#06b6d4" stroke-width="1.5"/>
+          <circle cx="200" cy="200" r="100" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="2 2"/>
+        </svg>
+
+        <div>
+          <div class="hero-shield-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+
+          <h1 class="hero-title" style="font-size: 28px; margin-bottom: 8px;">Create Account</h1>
+          <p class="hero-desc" style="font-size: 13px; color: #94a3b8; margin-bottom: 0;">Multi-cloud operator onboarding.</p>
+        </div>
+
+        <div class="hero-footer-status">
+          <span class="green-status-dot"></span>
+          <span>Protected access to your enterprise workspace</span>
+        </div>
+      </section>
+
+      <!-- Right Form Half (Clean White) -->
+      <section class="auth-form-half">
+        <span class="form-category-tag">OPERATOR ONBOARDING</span>
+        <h2 class="form-main-heading">Create an account</h2>
+        <p class="form-sub-heading">Enroll as a new cloud infrastructure operator.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="flash-alert-item flash-alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('auth.register') }}" class="auth-form-element">
+          <div class="form-field">
+            <label for="name">Full name</label>
+            <div class="field-input-box">
+              <input type="text" id="name" name="name" required placeholder="vasanth">
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="email">Email address</label>
+            <div class="field-input-box">
+              <input type="email" id="email" name="email" required placeholder="vasanthkumar23212921@gmail.com">
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="phone_number">Mobile Number (For WhatsApp / SMS Alerts)</label>
+            <div class="field-input-box">
+              <input type="tel" id="phone_number" name="phone_number" placeholder="+12015550199">
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="role">Operator Role</label>
+            <div class="field-input-box">
+              <select id="role" name="role" required>
+                <option value="Admin">Admin (Full Control: Schedule, Actions, Audit)</option>
+                <option value="Manager" selected>Manager (Operate Instances & Modify Schedules)</option>
+                <option value="Viewer">Viewer (Read-Only Inspection)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="password">Password</label>
+            <div class="field-input-box">
+              <input type="password" id="password" name="password" required placeholder="••••••••">
+            </div>
+          </div>
+
+          <button type="submit" class="btn-auth-submit">
+            <span>Create account</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </form>
+
+        <div class="auth-switch-link">
+          Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+{% endblock %}

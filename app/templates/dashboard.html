@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Cloud Scheduler{% endblock %}
+
+{% block content %}
+<!-- Top Blue Navigation Bar (Matching user screenshot) -->
+<nav class="top-blue-navbar">
+  <div class="navbar-left-group">
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-brand-title">Cloud Scheduler</a>
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-nav-link active">Dashboard</a>
+    <a href="{{ url_for('dashboard.view_resources') }}" class="navbar-nav-link">Resources</a>
+    <a href="{{ url_for('dashboard.view_schedules') }}" class="navbar-nav-link">Schedules</a>
+    <a href="{{ url_for('dashboard.view_alerts') }}" class="navbar-nav-link">Alerts</a>
+    <a href="{{ url_for('dashboard.view_audit_logs') }}" class="navbar-nav-link">Audit logs</a>
+    <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="navbar-nav-link">Cloud Accounts</a>
+  </div>
+
+  <div class="navbar-right-group">
+    <span class="navbar-username">{{ user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-navbar-logout">Logout</a>
+  </div>
+</nav>
+
+<!-- Page Content -->
+<main class="page-standard-container">
+  
+  <!-- Greeting Banner ("LIVE ENVIRONMENT") -->
+  <div class="env-greeting-banner">
+    <div>
+      <span class="env-tag">
+        LIVE ENVIRONMENT
+      </span>
+      <h2 class="env-heading">Good day, {{ user.name }}</h2>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+      <button class="btn-danger-action" style="background:#dc2626; border-color:#b91c1c; color:#ffffff; font-weight:700;" onclick="stopAllRunningInstances()">
+        🛑 Stop All Running
+      </button>
+      <button class="btn-amber-action" onclick="populateSampleFleet()">
+        ⚡ Load Sample Fleet
+      </button>
+      <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="btn-secondary-action">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Connect Cloud Account
+      </a>
+      <button class="btn-danger-action" onclick="clearDiscoveredInventory()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        Purge Inventory
+      </button>
+      <button class="btn-blue-action" onclick="syncCloudResources()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Discover Resources
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification Banner -->
+  <div id="dash-alert-banner" style="display: none; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 500;"></div>
+
+  <!-- Row of 5 Metric KPI Cards (Responsive Grid) -->
+  <div class="stats-kpi-row">
+    <!-- Card 1: Total Resources -->
+    <div class="stat-kpi-card card-kpi-blue">
+      <div class="stat-card-header">
+        <span class="stat-card-label">Total Resources</span>
+        <div class="stat-badge-icon badge-kpi-blue">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>
+        </div>
+      </div>
+      <div>
+        <div class="stat-big-number num-kpi-blue" id="dash-total-resources">0</div>
+        <div class="stat-footer-text">Discovered instances</div>
+      </div>
+    </div>
+
+    <!-- Card 2: Running -->
+    <div class="stat-kpi-card card-kpi-emerald">
+      <div class="stat-card-header">
+        <span class="stat-card-label">Running</span>
+        <div class="stat-badge-icon badge-kpi-emerald">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+        </div>
+      </div>
+      <div>
+        <div class="stat-big-number num-kpi-emerald" id="dash-running-resources">0</div>
+        <div class="stat-footer-text">Active operational</div>
+      </div>
+    </div>
+
+    <!-- Card 3: Stopped -->
+    <div class="stat-kpi-card card-kpi-slate">
+      <div class="stat-card-header">
+        <span class="stat-card-label">Stopped</span>
+        <div class="stat-badge-icon badge-kpi-slate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+        </div>
+      </div>
+      <div>
+        <div class="stat-big-number num-kpi-slate" id="dash-stopped-resources">0</div>
+        <div class="stat-footer-text">Idle / powered off</div>
+      </div>
+    </div>
+
+    <!-- Card 4: Scheduled Actions -->
+    <div class="stat-kpi-card card-kpi-purple">
+      <div class="stat-card-header">
+        <span class="stat-card-label">Scheduled Policies</span>
+        <div class="stat-badge-icon badge-kpi-purple">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+        </div>
+      </div>
+      <div>
+        <div class="stat-big-number num-kpi-purple" id="dash-scheduled-actions">0</div>
+        <div class="stat-footer-text">Active compliance rules</div>
+      </div>
+    </div>
+
+    <!-- Card 5: FinOps Cost Savings -->
+    <div class="stat-kpi-card card-kpi-gold">
+      <div class="stat-card-header">
+        <span class="stat-card-label">Estimated Savings</span>
+        <span class="finops-pill-gold">FinOps</span>
+      </div>
+      <div>
+        <div class="stat-big-number num-kpi-gold" id="dash-savings-usd">$0.00</div>
+        <div class="stat-footer-text" id="dash-savings-inr">₹0.00 saved</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connected Cloud Providers Status Dock -->
+  <div class="providers-dock-card">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em;">Cloud Providers:</span>
+      
+      <div class="provider-chip-item" style="border-color: #fed7aa; background: #fffaf5;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:5px; background:#ffedd5; color:#ea580c; font-weight:800; font-size:10px;">AWS</span>
+        <span style="font-weight: 700; color: #ea580c;">Amazon EC2</span>
+        <span style="color: #64748b; font-size: 11.5px;">us-east-1</span>
+        <span id="badge-aws-status" class="provider-dot active" title="AWS Active"></span>
+      </div>
+
+      <div class="provider-chip-item" style="border-color: #bfdbfe; background: #f8faff;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:5px; background:#dbeafe; color:#2563eb; font-weight:800; font-size:10px;">AZ</span>
+        <span style="font-weight: 700; color: #2563eb;">Azure ARM</span>
+        <span style="color: #64748b; font-size: 11.5px;">Virtual Machines</span>
+        <span id="badge-azure-status" class="provider-dot idle" title="Azure Configurable"></span>
+      </div>
+
+      <div class="provider-chip-item" style="border-color: #fecaca; background: #fff8f8;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:5px; background:#fee2e2; color:#dc2626; font-weight:800; font-size:10px;">GCP</span>
+        <span style="font-weight: 700; color: #dc2626;">Compute Engine</span>
+        <span style="color: #64748b; font-size: 11.5px;">VM Instances</span>
+        <span id="badge-gcp-status" class="provider-dot idle" title="GCP Configurable"></span>
+      </div>
+    </div>
+
+    <a href="{{ url_for('dashboard.view_cloud_accounts') }}" style="font-size: 12.5px; font-weight: 600; color: var(--brand-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+      Configure &amp; Test Cloud Accounts &rarr;
+    </a>
+  </div>
+
+  <!-- Lower Section Split (Resource Overview + Quick Actions) -->
+  <div class="dash-lower-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+    
+    <!-- Left Column: Resource Overview Card & FinOps -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      
+      <!-- Resource Overview Card (Differentiated Blue Accent) -->
+      <div class="card-resource-overview">
+        <div class="block-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h3 class="block-main-title">Resource Overview</h3>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <a href="{{ url_for('dashboard.view_resources') }}" class="block-header-link">
+              <span>View All</span>
+              <span>&rarr;</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Filter / Search Row -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+          <input type="text" id="dash-search-input" placeholder="Filter instances..." oninput="filterDashboardTable()" style="padding: 7px 14px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; max-width: 260px; width: 100%; transition: all 0.2s;">
+          <div style="display: flex; gap: 6px;">
+            <button class="dash-filter-pill filter-pill-all active" onclick="setDashFilter('all', this)">All (<span id="count-all">0</span>)</button>
+            <button class="dash-filter-pill filter-pill-running" onclick="setDashFilter('running', this)">Running (<span id="count-running">0</span>)</button>
+            <button class="dash-filter-pill filter-pill-stopped" onclick="setDashFilter('stopped', this)">Stopped (<span id="count-stopped">0</span>)</button>
+          </div>
+        </div>
+
+        <!-- Empty State Placeholder -->
+        <div id="resource-overview-empty" class="resource-empty-state-box" style="padding: 38px 20px; text-align: center; border: 1.5px dashed #cbd5e1; border-radius: 10px; background: #fafbfc;">
+          <div class="empty-cloud-circle" style="margin: 0 auto 12px auto;">C</div>
+          <div class="empty-state-title" style="font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 4px;">No cloud resources currently in inventory</div>
+          <p class="empty-state-desc" style="color: #64748b; font-size: 13px; max-width: 440px; margin: 0 auto 16px auto;">
+            Connect your cloud provider or click <strong>Load Sample Instances</strong> below to instantly populate realistic cloud instances for testing.
+          </p>
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn-table-action" style="background:#fff7ed; color:#c2410c; border:1.5px solid #fed7aa; padding:8px 16px; font-weight:700;" onclick="populateSampleFleet()">
+              ⚡ Load Sample Multi-Cloud Fleet
+            </button>
+            <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="btn-blue-action" style="text-decoration: none; padding: 8px 16px;">
+              + Connect Cloud Account
+            </a>
+          </div>
+        </div>
+
+        <!-- Populated Resources Table Preview -->
+        <div id="resource-overview-table-wrap" style="display: none; overflow-x: auto;">
+          <table class="clean-resource-table" style="width: 100%;">
+            <thead>
+              <tr style="background-color: #fafbfc;">
+                <th style="padding: 11px 14px;">Provider</th>
+                <th style="padding: 11px 14px;">Instance</th>
+                <th style="padding: 11px 14px;">Region / Type</th>
+                <th style="padding: 11px 14px;">Status</th>
+                <th style="padding: 11px 14px;">Uptime</th>
+                <th style="padding: 11px 14px; text-align: right;">Quick Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dash-overview-tbody">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FinOps Cost Optimization Card (Differentiated Emerald Accent) -->
+      <div class="card-finops-analytics">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0;">FinOps Cloud Cost Analytics</h3>
+          </div>
+          <span style="font-size: 11px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-weight: 800; padding: 4px 10px; border-radius: 9999px;">ACTIVE MONITORING</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+          <div class="finops-kpi-subcard finops-subcard-hours">
+            <div style="font-size: 11px; color: #1e40af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Avoided Idle Hours</div>
+            <div id="finops-avoided-hours" style="font-size: 22px; font-weight: 800; color: #1d4ed8; margin: 6px 0 0 0;">0.0 hrs</div>
+          </div>
+          <div class="finops-kpi-subcard finops-subcard-burn">
+            <div style="font-size: 11px; color: #b45309; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Hourly Active Burn</div>
+            <div id="finops-burn-rate" style="font-size: 22px; font-weight: 800; color: #b45309; margin: 6px 0 0 0;">$0.00 / hr</div>
+          </div>
+          <div class="finops-kpi-subcard finops-subcard-savings">
+            <div style="font-size: 11px; color: #d1fae5; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Accumulated Savings</div>
+            <div id="finops-total-savings" style="font-size: 22px; font-weight: 800; color: #ffffff; margin: 6px 0 0 0;">$0.00</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Quick Actions & System Telemetry -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      
+      <!-- Quick Actions Card (Differentiated Purple Accent) -->
+      <div class="card-quick-actions">
+        <div class="block-header-row" style="margin-bottom: 12px;">
+          <h3 class="block-main-title">Quick Actions</h3>
+        </div>
+
+        <div class="quick-actions-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Action 1: Load Sample Fleet -->
+          <button class="quick-action-card-btn qa-btn-amber" onclick="populateSampleFleet()">
+            <div class="qa-left-block">
+              <div class="qa-icon-wrap" style="background:#fff7ed; color:#ea580c;">
+                ⚡
+              </div>
+              <span class="qa-title">Load Sample Fleet</span>
+            </div>
+            <span class="qa-arrow-icon">&rarr;</span>
+          </button>
+
+          <!-- Action 2: Connect Cloud Account -->
+          <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="quick-action-card-btn qa-btn-blue">
+            <div class="qa-left-block">
+              <div class="qa-icon-wrap" style="background:#eff6ff; color:#2563eb;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+                </svg>
+              </div>
+              <span class="qa-title">Connect Cloud Account</span>
+            </div>
+            <span class="qa-arrow-icon">&rarr;</span>
+          </a>
+
+          <!-- Action 3: Run Governance Audit -->
+          <button class="quick-action-card-btn qa-btn-emerald" onclick="triggerPolicyAudit()">
+            <div class="qa-left-block">
+              <div class="qa-icon-wrap" style="background:#ecfdf5; color:#059669;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <span class="qa-title">Run Policy Audit</span>
+            </div>
+            <span class="qa-arrow-icon">&rarr;</span>
+          </button>
+
+          <!-- Action 4: Test Multi-Channel Alert -->
+          <button class="quick-action-card-btn qa-btn-rose" onclick="dispatchQuickTestAlert()">
+            <div class="qa-left-block">
+              <div class="qa-icon-wrap" style="background:#fef2f2; color:#b91c1c;">
+                🚀
+              </div>
+              <span class="qa-title">Dispatch Test Alert</span>
+            </div>
+            <span class="qa-arrow-icon">&rarr;</span>
+          </button>
+
+          <!-- Action 5: Create Schedule -->
+          <a href="{{ url_for('dashboard.view_schedules') }}" class="quick-action-card-btn qa-btn-purple">
+            <div class="qa-left-block">
+              <div class="qa-icon-wrap" style="background:#faf5ff; color:#7c3aed;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                </svg>
+              </div>
+              <span class="qa-title">Create Schedule</span>
+            </div>
+            <span class="qa-arrow-icon">&rarr;</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Engine Telemetry Card (Differentiated Slate Accent) -->
+      <div class="card-engine-status">
+        <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0 0 14px 0;">System Engine Status</h3>
+        
+        <div style="display: flex; flex-direction: column;">
+          <div class="engine-status-row">
+            <span style="color: #64748b; font-weight: 500;">Task Scheduler</span>
+            <span class="engine-badge-live">● APScheduler (Active)</span>
+          </div>
+          <div class="engine-status-row">
+            <span style="color: #64748b; font-weight: 500;">Audit Interval</span>
+            <span class="engine-badge-cyan">Every 60s</span>
+          </div>
+          <div class="engine-status-row">
+            <span style="color: #64748b; font-weight: 500;">Grace Period Fallback</span>
+            <span class="engine-badge-amber">30m Auto-Stop</span>
+          </div>
+          <div class="engine-status-row">
+            <span style="color: #64748b; font-weight: 500;">Action Token Security</span>
+            <span class="engine-badge-violet">HMAC-SHA256 (15m)</span>
+          </div>
+          <div class="engine-status-row">
+            <span style="color: #64748b; font-weight: 500;">Alert Gateways</span>
+            <div class="engine-gateways-list">
+              <span class="engine-gw-pill engine-gw-ntfy">ntfy</span>
+              <span class="engine-gw-pill engine-gw-email">Email</span>
+              <span class="engine-gw-pill engine-gw-sms">SMS</span>
+              <span class="engine-gw-pill engine-gw-wa">WhatsApp</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Audit Feed Card (Differentiated Rose Accent) -->
+      <div class="card-audit-feed">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 16px; font-weight: 800; color: #0f172a; margin: 0;">Recent Audit Events</h3>
+          <a href="{{ url_for('dashboard.view_audit_logs') }}" style="font-size: 12px; color: #2563eb; text-decoration: none; font-weight: 700;">View All &rarr;</a>
+        </div>
+        <div id="dash-recent-audits-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 12px; color: #94a3b8; text-align: center; padding: 12px 0;">Loading activity ledger...</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<style>
+@media (max-width: 992px) {
+  .dash-lower-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 640px) {
+  .top-blue-navbar {
+    padding: 0 16px;
+    height: auto;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .navbar-left-group {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .page-standard-container {
+    padding: 16px 10px !important;
+  }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+let currentDashFilter = 'all';
+
+function setDashFilter(filterType, btn) {
+  currentDashFilter = filterType;
+  document.querySelectorAll('.dash-filter-pill').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderDashboardOverviewTable();
+}
+
+function filterDashboardTable() {
+  renderDashboardOverviewTable();
+}
+
+function renderDashboardOverviewTable() {
+  const tbody = document.getElementById('dash-overview-tbody');
+  const emptyBox = document.getElementById('resource-overview-empty');
+  const tableWrap = document.getElementById('resource-overview-table-wrap');
+  const searchVal = (document.getElementById('dash-search-input')?.value || '').toLowerCase().trim();
+
+  if (!currentResources || currentResources.length === 0) {
+    if (emptyBox) emptyBox.style.display = 'block';
+    if (tableWrap) tableWrap.style.display = 'none';
+    return;
+  }
+
+  if (emptyBox) emptyBox.style.display = 'none';
+  if (tableWrap) tableWrap.style.display = 'block';
+
+  // Update filter pill counts
+  const countAll = currentResources.length;
+  const countRunning = currentResources.filter(r => r.state === 'running').length;
+  const countStopped = currentResources.filter(r => r.state === 'stopped').length;
+  if (document.getElementById('count-all')) document.getElementById('count-all').innerText = countAll;
+  if (document.getElementById('count-running')) document.getElementById('count-running').innerText = countRunning;
+  if (document.getElementById('count-stopped')) document.getElementById('count-stopped').innerText = countStopped;
+
+  let filtered = currentResources;
+  if (currentDashFilter === 'running') filtered = filtered.filter(r => r.state === 'running');
+  if (currentDashFilter === 'stopped') filtered = filtered.filter(r => r.state === 'stopped');
+
+  if (searchVal) {
+    filtered = filtered.filter(r => 
+      r.instance_name.toLowerCase().includes(searchVal) ||
+      r.instance_id.toLowerCase().includes(searchVal) ||
+      r.region.toLowerCase().includes(searchVal) ||
+      (r.provider && r.provider.toLowerCase().includes(searchVal))
+    );
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding: 24px;">No instances match your filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    const isRunning = r.state === 'running';
+    const prov = (r.provider || 'AWS').toUpperCase();
+    let provBadge = '';
+    if (prov.includes('AWS')) {
+      provBadge = '<span style="display:inline-flex; align-items:center; padding: 3px 8px; border-radius: 6px; font-weight:800; font-size:11px; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;">AWS</span>';
+    } else if (prov.includes('AZURE')) {
+      provBadge = '<span style="display:inline-flex; align-items:center; padding: 3px 8px; border-radius: 6px; font-weight:800; font-size:11px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe;">Azure</span>';
+    } else {
+      provBadge = '<span style="display:inline-flex; align-items:center; padding: 3px 8px; border-radius: 6px; font-weight:800; font-size:11px; background:#fef2f2; color:#dc2626; border:1px solid #fecaca;">GCP</span>';
+    }
+
+    const stateBadge = isRunning
+      ? '<span class="badge-state-pill badge-state-running"><span class="dot-green"></span> Running</span>'
+      : '<span class="badge-state-pill badge-state-stopped"><span class="dot-gray"></span> Stopped</span>';
+
+    return `
+      <tr>
+        <td style="padding: 10px 14px;">${provBadge}</td>
+        <td style="padding: 10px 14px;">
+          <div style="font-weight: 600; color: #111827; font-size: 13px;">${escapeHtml(r.instance_name)}</div>
+          <div style="font-family: var(--font-mono); font-size: 11px; color: #1d4ed8;">${r.instance_id}</div>
+        </td>
+        <td style="padding: 10px 14px;">
+          <div style="font-size: 12px;">${r.region}</div>
+          <div style="font-size: 11px; color: #6b7280;">${r.instance_type}</div>
+        </td>
+        <td style="padding: 10px 14px;">${stateBadge}</td>
+        <td style="padding: 10px 14px; font-family: var(--font-mono); font-size: 12px;">
+          ${isRunning ? r.uptime_hours + ' hrs' : '0.0 hrs'}
+        </td>
+        <td style="padding: 10px 14px; text-align: right;">
+          <div style="display: inline-flex; gap: 4px;">
+            ${isRunning
+              ? `<button class="btn-table-action btn-tbl-stop" style="padding:3px 8px; font-size:11px;" onclick="stopInstance(${r.id})">Stop</button>
+                 <button class="btn-table-action btn-tbl-extend" style="padding:3px 8px; font-size:11px;" onclick="extendInstance(${r.id}, 60)">+60m</button>
+                 <button class="btn-table-action btn-tbl-alert" style="padding:3px 8px; font-size:11px;" onclick="triggerAlert(${r.id})">Alert</button>`
+              : `<button class="btn-table-action btn-tbl-start" style="padding:3px 8px; font-size:11px;" onclick="startInstance(${r.id})">Start</button>`
+            }
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function populateSampleFleet() {
+  showDashboardBanner('Loading sample multi-cloud fleet into inventory...', 'info');
+  try {
+    const res = await fetch('/api/resources/sample-fleet', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showDashboardBanner(data.message, 'success');
+      fetchAllData(false);
+    } else {
+      showDashboardBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showDashboardBanner(err.message, 'error');
+  }
+}
+
+async function dispatchQuickTestAlert() {
+  showDashboardBanner('Dispatching test alert across Email, SMS, and WhatsApp...', 'info');
+  try {
+    const res = await fetch('/api/alerts/test-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showDashboardBanner(`✓ Alert dispatched! HMAC Single-Click Stop Webhook URL: ${data.stop_url}`, 'success');
+      fetchAllData(false);
+    } else {
+      showDashboardBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showDashboardBanner(err.message, 'error');
+  }
+}
+
+function showDashboardBanner(msg, type = 'info') {
+  const b = document.getElementById('dash-alert-banner');
+  if (!b) return;
+  b.style.display = 'block';
+  if (type === 'success') {
+    b.style.backgroundColor = '#ecfdf5';
+    b.style.color = '#065f46';
+    b.style.border = '1px solid #a7f3d0';
+  } else if (type === 'error') {
+    b.style.backgroundColor = '#fef2f2';
+    b.style.color = '#991b1b';
+    b.style.border = '1px solid #fecaca';
+  } else {
+    b.style.backgroundColor = '#eff6ff';
+    b.style.color = '#1e40af';
+    b.style.border = '1px solid #bfdbfe';
+  }
+  b.innerText = msg;
+}
+</script>
+{% endblock %}

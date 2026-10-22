@@ -1,0 +1,903 @@
+{% extends "base.html" %}
+
+{% block title %}Cloud Accounts | Cloud Scheduler{% endblock %}
+
+{% block content %}
+<!-- Top Blue Navigation Bar (Matching user screenshots) -->
+<nav class="top-blue-navbar">
+  <div class="navbar-left-group">
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-brand-title">Cloud Scheduler</a>
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-nav-link">Dashboard</a>
+    <a href="{{ url_for('dashboard.view_resources') }}" class="navbar-nav-link">Resources</a>
+    <a href="{{ url_for('dashboard.view_schedules') }}" class="navbar-nav-link">Schedules</a>
+    <a href="{{ url_for('dashboard.view_alerts') }}" class="navbar-nav-link">Alerts</a>
+    <a href="{{ url_for('dashboard.view_audit_logs') }}" class="navbar-nav-link">Audit logs</a>
+    <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="navbar-nav-link active">Cloud Accounts</a>
+  </div>
+
+  <div class="navbar-right-group">
+    <span class="navbar-username">{{ user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-navbar-logout">Logout</a>
+  </div>
+</nav>
+
+<!-- Page Content -->
+<main class="page-standard-container" style="max-width: 1280px;">
+  <!-- Header Title & Action Buttons -->
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h1 class="page-heading-title" style="margin-bottom: 4px;">Cloud Accounts &amp; Integrations</h1>
+      <p style="color: #6b7280; font-size: 13px; margin: 0;">
+        Connect and test connection credentials for <strong>Amazon Web Services (AWS)</strong>, <strong>Microsoft Azure</strong>, and <strong>Google Cloud Platform (GCP)</strong>.
+      </p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn-danger-action" onclick="clearDiscoveredInventory()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+        Purge Discovered Inventory
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification Banner -->
+  <div id="account-alert-banner" style="display: none; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; font-weight: 500;"></div>
+
+  <!-- Multi-Cloud Provider Form Card (Differentiated Purple Accent) -->
+  <div class="card-quick-actions" style="margin-bottom: 28px; padding: 24px;">
+    <div style="margin-bottom: 18px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: #111827; margin: 0 0 4px 0;">Add &amp; Test Cloud Provider Connection</h3>
+      <p style="font-size: 13px; color: #6b7280; margin: 0;">Select your cloud provider below, input API credentials, and click <strong>Test Connection</strong> to verify live access.</p>
+    </div>
+
+    <!-- Provider Selection Tabs -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px;">
+      <button type="button" id="tab-btn-aws" class="provider-tab-btn active-tab-aws" onclick="selectProviderTab('AWS')">
+        <span style="font-weight: 700; color: #ff9900;">AWS</span> Amazon Web Services
+      </button>
+      <button type="button" id="tab-btn-azure" class="provider-tab-btn" onclick="selectProviderTab('AZURE')">
+        <span style="font-weight: 700; color: #0078d4;">Azure</span> Microsoft Azure
+      </button>
+      <button type="button" id="tab-btn-gcp" class="provider-tab-btn" onclick="selectProviderTab('GCP')">
+        <span style="font-weight: 700; color: #ea4335;">GCP</span> Google Cloud Platform
+      </button>
+    </div>
+
+    <!-- Form 1: AWS Form -->
+    <form id="form-aws-account" onsubmit="handleAccountSubmit(event, 'AWS')">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span style="font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px;">AWS IAM &amp; EC2 Configuration</span>
+        <button type="button" class="btn-outline-sandbox" onclick="fillSandboxCreds('AWS')">
+          ⚡ Fill Demo / Sandbox AWS Keys
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label class="form-field-label">Account Friendly Name *</label>
+          <input type="text" id="aws-name" class="form-field-input" placeholder="e.g. AWS Production - US East" required>
+        </div>
+        <div>
+          <label class="form-field-label">Default Region *</label>
+          <select id="aws-region" class="form-field-input">
+            <option value="us-east-1" selected>us-east-1 (N. Virginia)</option>
+            <option value="us-west-2">us-west-2 (Oregon)</option>
+            <option value="ap-south-1">ap-south-1 (Mumbai)</option>
+            <option value="eu-west-1">eu-west-1 (Ireland)</option>
+            <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-field-label">AWS Access Key ID *</label>
+          <input type="text" id="aws-key-id" class="form-field-input" placeholder="e.g. AKIAIOSFODNN7EXAMPLE" required style="font-family: var(--font-mono);">
+        </div>
+        <div>
+          <label class="form-field-label">AWS Secret Access Key *</label>
+          <input type="password" id="aws-secret-key" class="form-field-input" placeholder="••••••••••••••••••••••••" required style="font-family: var(--font-mono);">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+        <button type="button" class="btn-test-action" onclick="testConnectionFromForm('AWS')">
+          <span id="test-spinner-aws" class="spinner-inline" style="display: none;"></span>
+          Test AWS Connection
+        </button>
+        <button type="submit" class="btn-blue-action">
+          Save &amp; Connect AWS Account
+        </button>
+      </div>
+    </form>
+
+    <!-- Form 2: Azure Form -->
+    <form id="form-azure-account" onsubmit="handleAccountSubmit(event, 'AZURE')" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span style="font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px;">Azure Service Principal &amp; ARM Configuration</span>
+        <button type="button" class="btn-outline-sandbox" onclick="fillSandboxCreds('AZURE')">
+          ⚡ Fill Demo / Sandbox Azure Credentials
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label class="form-field-label">Account Friendly Name *</label>
+          <input type="text" id="azure-name" class="form-field-input" placeholder="e.g. Azure Enterprise Sub" required>
+        </div>
+        <div>
+          <label class="form-field-label">Azure Region *</label>
+          <select id="azure-region" class="form-field-input">
+            <option value="eastus" selected>eastus (East US)</option>
+            <option value="westus2">westus2 (West US 2)</option>
+            <option value="centralindia">centralindia (Central India)</option>
+            <option value="westeurope">westeurope (West Europe)</option>
+            <option value="southeastasia">southeastasia (Southeast Asia)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-field-label">Subscription ID *</label>
+          <input type="text" id="azure-sub-id" class="form-field-input" placeholder="e.g. 12345678-1234-1234-1234-123456789012" required style="font-family: var(--font-mono);">
+        </div>
+        <div>
+          <label class="form-field-label">Directory (Tenant) ID *</label>
+          <input type="text" id="azure-tenant-id" class="form-field-input" placeholder="e.g. 87654321-4321-4321-4321-210987654321" required style="font-family: var(--font-mono);">
+        </div>
+        <div>
+          <label class="form-field-label">Application (Client) ID *</label>
+          <input type="text" id="azure-client-id" class="form-field-input" placeholder="e.g. aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" required style="font-family: var(--font-mono);">
+        </div>
+        <div>
+          <label class="form-field-label">Client Secret Value *</label>
+          <input type="password" id="azure-client-secret" class="form-field-input" placeholder="••••••••••••••••••••••••" required style="font-family: var(--font-mono);">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+        <button type="button" class="btn-test-action" onclick="testConnectionFromForm('AZURE')">
+          <span id="test-spinner-azure" class="spinner-inline" style="display: none;"></span>
+          Test Azure Connection
+        </button>
+        <button type="submit" class="btn-blue-action">
+          Save &amp; Connect Azure Account
+        </button>
+      </div>
+    </form>
+
+    <!-- Form 3: GCP Form -->
+    <form id="form-gcp-account" onsubmit="handleAccountSubmit(event, 'GCP')" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span style="font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px;">GCP Service Account &amp; Compute Engine</span>
+        <button type="button" class="btn-outline-sandbox" onclick="fillSandboxCreds('GCP')">
+          ⚡ Fill Demo / Sandbox GCP Credentials
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px;">
+        <div>
+          <label class="form-field-label">Account Friendly Name *</label>
+          <input type="text" id="gcp-name" class="form-field-input" placeholder="e.g. GCP Analytics Production" required>
+        </div>
+        <div>
+          <label class="form-field-label">GCP Zone / Region *</label>
+          <select id="gcp-zone" class="form-field-input">
+            <option value="us-central1-a" selected>us-central1-a (Iowa)</option>
+            <option value="us-east1-b">us-east1-b (South Carolina)</option>
+            <option value="asia-south1-a">asia-south1-a (Mumbai)</option>
+            <option value="europe-west1-b">europe-west1-b (Belgium)</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-field-label">GCP Project ID *</label>
+          <input type="text" id="gcp-project-id" class="form-field-input" placeholder="e.g. my-gcp-project-10293" required style="font-family: var(--font-mono);">
+        </div>
+        <div>
+          <label class="form-field-label">Service Account Client Email</label>
+          <input type="email" id="gcp-email" class="form-field-input" placeholder="e.g. scheduler-sa@project.iam.gserviceaccount.com" style="font-family: var(--font-mono);">
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label class="form-field-label">Service Account Key (Private Key / Paste JSON)</label>
+          <textarea id="gcp-key-json" class="form-field-input" rows="3" placeholder='{"type": "service_account", "project_id": "...", ...}' style="font-family: var(--font-mono); font-size: 12px;"></textarea>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; align-items: center; justify-content: flex-end;">
+        <button type="button" class="btn-test-action" onclick="testConnectionFromForm('GCP')">
+          <span id="test-spinner-gcp" class="spinner-inline" style="display: none;"></span>
+          Test GCP Connection
+        </button>
+        <button type="submit" class="btn-blue-action">
+          Save &amp; Connect GCP Account
+        </button>
+      </div>
+    </form>
+
+    <!-- Test Connection Diagnostics Box -->
+    <div id="test-result-box" style="display: none; margin-top: 20px; border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden;">
+      <div id="test-result-header" style="padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px;">
+        <span id="test-result-title">Connection Diagnostic Result</span>
+        <span id="test-result-latency" style="font-family: var(--font-mono); font-size: 11px;"></span>
+      </div>
+      <div id="test-result-body" style="padding: 16px 18px; font-size: 13px; line-height: 1.5; background: #ffffff;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Connected Accounts Inventory Table -->
+  <div class="card-white-box" style="padding: 0; overflow: hidden;">
+    <div style="padding: 18px 24px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 2px 0;">Connected Cloud Accounts</h3>
+        <p style="font-size: 12px; color: #6b7280; margin: 0;">Verified cloud integrations authorized for compute scheduling and discovery.</p>
+      </div>
+      <button class="btn-outline-sandbox" onclick="loadSavedAccounts()">↻ Refresh Accounts</button>
+    </div>
+
+    <table class="clean-resource-table">
+      <thead>
+        <tr style="background-color: #fafbfc;">
+          <th style="padding: 12px 20px;">Provider</th>
+          <th style="padding: 12px 20px;">Account Name</th>
+          <th style="padding: 12px 20px;">Identifier / Project</th>
+          <th style="padding: 12px 20px;">Region</th>
+          <th style="padding: 12px 20px;">Status</th>
+          <th style="padding: 12px 20px;">Last Tested</th>
+          <th style="padding: 12px 20px; text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="accounts-table-tbody">
+        <tr>
+          <td colspan="7" class="text-center text-muted" style="padding: 32px;">
+            Loading cloud integrations...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- AWS IAM Permission Resolution Guide Card -->
+  <div id="aws-iam-fix-card" class="card-white-box" style="margin-top: 24px; padding: 24px; border-left: 4px solid #f59e0b;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+      <div>
+        <h3 style="font-size: 16px; font-weight: 700; color: #92400e; margin: 0 0 4px 0;">
+          💡 Why Did the AWS Connection Show "Failed" &amp; How to Fix It Easily
+        </h3>
+        <p style="font-size: 13px; color: #78350f; margin: 0;">
+          Your AWS credentials (Access Key &amp; Secret Key) are <strong>valid and genuine</strong>! AWS successfully authenticated your IAM user. However, newly created IAM users in AWS start with <strong>zero permissions</strong> by default.
+        </p>
+      </div>
+      <span style="background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 4px;">AWS IAM GUIDE</span>
+    </div>
+
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 14px; font-size: 13px; color: #92400e; margin-bottom: 16px;">
+      <div style="font-weight: 700; margin-bottom: 4px;">Exact AWS Error Received:</div>
+      <code style="display: block; font-family: var(--font-mono); font-size: 12px; color: #b45309; word-break: break-all;">
+        User: arn:aws:iam::774305615275:user/test-user is not authorized to perform: ec2:DescribeRegions because no identity-based policy allows the ec2:DescribeRegions action
+      </code>
+    </div>
+
+    <div style="margin-bottom: 14px;">
+      <h4 style="font-size: 14px; font-weight: 700; color: #111827; margin: 0 0 8px 0;">3 Steps to Fix in AWS Management Console:</h4>
+      <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #374151; line-height: 1.8;">
+        <li>Open the AWS IAM Console: <a href="https://console.aws.amazon.com/iam/home#/users" target="_blank" style="color: #1d4ed8; font-weight: 600; text-decoration: underline;">https://console.aws.amazon.com/iam/users</a></li>
+        <li>Click on your IAM user: <strong><code>test-user</code></strong></li>
+        <li>Click the <strong>Add permissions</strong> dropdown &rarr; Select <strong>Attach policies directly</strong></li>
+        <li>In the search box, type <strong><code>AmazonEC2FullAccess</code></strong> (or <code>AmazonEC2ReadOnlyAccess</code>) and check the box</li>
+        <li>Click <strong>Next</strong> &rarr; Click <strong>Add permissions</strong></li>
+        <li>Come back to this page and click the green <strong>"Test"</strong> button in the table above &mdash; it will immediately verify as <strong>● Connected</strong>!</li>
+      </ol>
+    </div>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 12px; color: #475569; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+      <div>
+        <strong>Want to test without AWS console changes?</strong> Click "Fill Demo / Sandbox AWS Keys" above to test discovery, scheduling, and alerts instantly with simulated instances.
+      </div>
+      <button class="btn-outline-sandbox" onclick="fillSandboxCreds('AWS')">⚡ Use Sandbox Demo Keys</button>
+    </div>
+  </div>
+
+  <!-- Interactive Multi-Channel Alert Testing Center -->
+  <div class="card-white-box" style="margin-top: 24px; padding: 24px; border-left: 4px solid #3b82f6;">
+    <div style="margin-bottom: 16px;">
+      <h3 style="font-size: 16px; font-weight: 700; color: #1e3a8a; margin: 0 0 4px 0;">
+        Interactive Multi-Channel Alert &amp; Webhook Testing Center
+      </h3>
+      <p style="font-size: 13px; color: #6b7280; margin: 0;">
+        Test whether the notification system is actively sending alerts across <strong>SMTP Email</strong>, <strong>Twilio SMS</strong>, and <strong>Twilio WhatsApp</strong>, and test the single-click remote execution webhooks.
+      </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 16px;">
+      <div>
+        <label class="form-field-label">Target Email Address *</label>
+        <input type="email" id="test-alert-email" class="form-field-input" value="{{ user.email or 'vasanthkumar20262026@gmail.com' }}" style="font-family: var(--font-mono);">
+      </div>
+      <div>
+        <label class="form-field-label">Target Phone Number (SMS &amp; WhatsApp)</label>
+        <input type="text" id="test-alert-phone" class="form-field-input" value="+919025903459" placeholder="+919025903459" style="font-family: var(--font-mono);">
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+        <button type="button" class="btn-blue-action" style="width: 100%; height: 42px; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="sendTestMultiChannelAlert()">
+          <span id="test-alert-spinner" class="spinner-inline" style="display: none;"></span>
+          🚀 Dispatch Test Alert Across All 3 Channels
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Alert Results Display Box -->
+    <div id="alert-dispatch-results-box" style="display: none; background: #fafbfc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 14px;">
+      <div style="font-weight: 700; font-size: 14px; color: #111827; margin-bottom: 10px;">Dispatch Status &amp; Interactive Webhook Links:</div>
+      
+      <!-- Channels Status Grid -->
+      <div id="alert-channels-status-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px;">
+      </div>
+
+      <!-- Single-Click Action Buttons -->
+      <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px;">
+        <div style="font-weight: 600; font-size: 13px; color: #0f172a; margin-bottom: 6px;">Single-Click Webhooks (HMAC-SHA256 Signed &bull; Valid for 15 minutes):</div>
+        <p style="font-size: 12px; color: #64748b; margin: 0 0 10px 0;">Clicking these buttons verifies the remote execution handler without requiring cloud console login.</p>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <a id="btn-live-stop-link" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background-color: #ef4444; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; text-decoration: none;">
+            🛑 Test Remote STOP Webhook &rarr;
+          </a>
+          <a id="btn-live-extend-link" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background-color: #0284c7; color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; text-decoration: none;">
+            ⏳ Test EXTEND LEASE (+60m) Webhook &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<style>
+.provider-tab-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+.provider-tab-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+.active-tab-aws {
+  background-color: #fff7ed !important;
+  color: #c2410c !important;
+  font-weight: 700 !important;
+  border: 1px solid #fed7aa !important;
+}
+.active-tab-azure {
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+  border: 1px solid #bfdbfe !important;
+}
+.active-tab-gcp {
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
+  font-weight: 700 !important;
+  border: 1px solid #fecaca !important;
+}
+.btn-outline-sandbox {
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-outline-sandbox:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  border-color: #94a3b8;
+}
+.btn-test-action {
+  background-color: #ffffff;
+  color: #1e40af;
+  border: 1.5px solid #3b82f6;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.btn-test-action:hover {
+  background-color: #eff6ff;
+  border-color: #2563eb;
+}
+.spinner-inline {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #93c5fd;
+  border-top-color: #1d4ed8;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSelectedProvider = 'AWS';
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadSavedAccounts();
+});
+
+function selectProviderTab(provider) {
+  currentSelectedProvider = provider;
+  document.querySelectorAll('.provider-tab-btn').forEach(btn => {
+    btn.className = 'provider-tab-btn';
+  });
+
+  document.getElementById('form-aws-account').style.display = 'none';
+  document.getElementById('form-azure-account').style.display = 'none';
+  document.getElementById('form-gcp-account').style.display = 'none';
+  document.getElementById('test-result-box').style.display = 'none';
+
+  if (provider === 'AWS') {
+    document.getElementById('tab-btn-aws').className = 'provider-tab-btn active-tab-aws';
+    document.getElementById('form-aws-account').style.display = 'block';
+  } else if (provider === 'AZURE') {
+    document.getElementById('tab-btn-azure').className = 'provider-tab-btn active-tab-azure';
+    document.getElementById('form-azure-account').style.display = 'block';
+  } else if (provider === 'GCP') {
+    document.getElementById('tab-btn-gcp').className = 'provider-tab-btn active-tab-gcp';
+    document.getElementById('form-gcp-account').style.display = 'block';
+  }
+}
+
+function fillSandboxCreds(provider) {
+  if (provider === 'AWS') {
+    document.getElementById('aws-name').value = 'AWS Primary (Sandbox Demo)';
+    document.getElementById('aws-region').value = 'us-east-1';
+    document.getElementById('aws-key-id').value = 'AKIA-SANDBOX-DEMO-KEY';
+    document.getElementById('aws-secret-key').value = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+  } else if (provider === 'AZURE') {
+    document.getElementById('azure-name').value = 'Azure Cloud Workloads (Sandbox Demo)';
+    document.getElementById('azure-region').value = 'eastus';
+    document.getElementById('azure-sub-id').value = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+    document.getElementById('azure-tenant-id').value = '72f988bf-86f1-41af-91ab-2d7cd011db47';
+    document.getElementById('azure-client-id').value = 'a4b8c9d0-1122-3344-5566-778899aabbcc';
+    document.getElementById('azure-client-secret').value = 'Dem0~Secr3t.AzureKeyExampleValue99!';
+  } else if (provider === 'GCP') {
+    document.getElementById('gcp-name').value = 'GCP Compute Analytics (Sandbox Demo)';
+    document.getElementById('gcp-zone').value = 'us-central1-a';
+    document.getElementById('gcp-project-id').value = 'cloud-scheduler-demo-proj';
+    document.getElementById('gcp-email').value = 'scheduler-sa@cloud-scheduler-demo-proj.iam.gserviceaccount.com';
+    document.getElementById('gcp-key-json').value = '{\n  "type": "service_account",\n  "project_id": "cloud-scheduler-demo-proj",\n  "private_key_id": "demo-key-123456",\n  "client_email": "scheduler-sa@cloud-scheduler-demo-proj.iam.gserviceaccount.com"\n}';
+  }
+  showBanner('Sandbox credentials populated! Click "Test Connection" to verify.', 'info');
+}
+
+function extractCreds(provider) {
+  let creds = {};
+  let accountName = '';
+  if (provider === 'AWS') {
+    accountName = document.getElementById('aws-name').value.trim();
+    creds = {
+      aws_access_key_id: document.getElementById('aws-key-id').value.trim(),
+      aws_secret_access_key: document.getElementById('aws-secret-key').value.trim(),
+      aws_region: document.getElementById('aws-region').value
+    };
+  } else if (provider === 'AZURE') {
+    accountName = document.getElementById('azure-name').value.trim();
+    creds = {
+      azure_subscription_id: document.getElementById('azure-sub-id').value.trim(),
+      azure_tenant_id: document.getElementById('azure-tenant-id').value.trim(),
+      azure_client_id: document.getElementById('azure-client-id').value.trim(),
+      azure_client_secret: document.getElementById('azure-client-secret').value.trim(),
+      azure_region: document.getElementById('azure-region').value
+    };
+  } else if (provider === 'GCP') {
+    accountName = document.getElementById('gcp-name').value.trim();
+    creds = {
+      gcp_project_id: document.getElementById('gcp-project-id').value.trim(),
+      gcp_client_email: document.getElementById('gcp-email').value.trim(),
+      gcp_service_account_json: document.getElementById('gcp-key-json').value.trim(),
+      gcp_zone: document.getElementById('gcp-zone').value
+    };
+  }
+  return { accountName, creds };
+}
+
+async function testConnectionFromForm(provider) {
+  const { accountName, creds } = extractCreds(provider);
+  const spinner = document.getElementById(`test-spinner-${provider.toLowerCase()}`);
+  if (spinner) spinner.style.display = 'inline-block';
+
+  const resBox = document.getElementById('test-result-box');
+  const resHeader = document.getElementById('test-result-header');
+  const resTitle = document.getElementById('test-result-title');
+  const resLatency = document.getElementById('test-result-latency');
+  const resBody = document.getElementById('test-result-body');
+
+  try {
+    const res = await fetch('/api/cloud-accounts/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, credentials: creds })
+    });
+    const data = await res.json();
+
+    resBox.style.display = 'block';
+    if (data.success) {
+      resHeader.style.backgroundColor = '#ecfdf5';
+      resHeader.style.color = '#065f46';
+      resTitle.innerHTML = `✓ ${provider} Connection Verified Successfully (${data.mode || 'CONNECTED'})`;
+      resLatency.innerText = data.latency_ms ? `Latency: ${data.latency_ms} ms` : '';
+
+      let detailsHtml = `
+        <div style="margin-bottom: 10px; font-weight: 600; color: #047857;">${escapeHtml(data.message || 'Connection established.')}</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 12px; background: #f9fafb; padding: 12px; border-radius: 6px;">
+      `;
+
+      if (data.arn) detailsHtml += `<div><strong>Identity ARN:</strong> <code style="color:#1d4ed8;">${escapeHtml(data.arn)}</code></div>`;
+      if (data.account_id) detailsHtml += `<div><strong>AWS Account ID:</strong> ${data.account_id}</div>`;
+      if (data.subscription_id) detailsHtml += `<div><strong>Azure Subscription:</strong> ${data.subscription_id}</div>`;
+      if (data.project_id) detailsHtml += `<div><strong>GCP Project ID:</strong> ${data.project_id}</div>`;
+      if (data.role) detailsHtml += `<div><strong>Assigned Role:</strong> ${data.role}</div>`;
+      if (data.region || data.zone) detailsHtml += `<div><strong>Region/Zone:</strong> ${data.region || data.zone}</div>`;
+      detailsHtml += `</div>`;
+
+      if (data.permissions_verified) {
+        detailsHtml += `
+          <div style="margin-top: 10px; font-size: 12px;">
+            <strong>Permissions Verified:</strong>
+            <span style="color: #059669; margin-left: 6px;">${data.permissions_verified.map(p => `✓ ${p}`).join(' &nbsp;|&nbsp; ')}</span>
+          </div>
+        `;
+      }
+
+      resBody.innerHTML = detailsHtml;
+      showBanner(`Connection test succeeded for ${provider}!`, 'success');
+    } else {
+      resHeader.style.backgroundColor = '#fef2f2';
+      resHeader.style.color = '#991b1b';
+      resTitle.innerHTML = `✗ ${provider} Connection Test Failed`;
+      resLatency.innerText = '';
+      resBody.innerHTML = `
+        <div style="color: #b91c1c; font-weight: 600; margin-bottom: 6px;">Authentication Error:</div>
+        <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 12px; color: #9f1239;">
+          ${escapeHtml(data.error || 'Failed to authenticate with cloud provider.')}
+        </div>
+      `;
+      showBanner(`Connection test failed for ${provider}: ${data.error}`, 'error');
+    }
+  } catch (err) {
+    resBox.style.display = 'block';
+    resHeader.style.backgroundColor = '#fef2f2';
+    resHeader.style.color = '#991b1b';
+    resTitle.innerHTML = `✗ Test Request Failed`;
+    resBody.innerHTML = `<div style="color:#b91c1c;">${err.message}</div>`;
+    showBanner(`Request error: ${err.message}`, 'error');
+  } finally {
+    if (spinner) spinner.style.display = 'none';
+  }
+}
+
+async function handleAccountSubmit(event, provider) {
+  event.preventDefault();
+  const { accountName, creds } = extractCreds(provider);
+  if (!accountName) {
+    alert('Please enter an account name.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/cloud-accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        account_name: accountName,
+        credentials: creds
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showBanner(data.message, 'success');
+      loadSavedAccounts();
+      // Scroll to accounts table
+      document.getElementById('accounts-table-tbody').scrollIntoView({ behavior: 'smooth' });
+    } else {
+      showBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+  }
+}
+
+async function loadSavedAccounts() {
+  const tbody = document.getElementById('accounts-table-tbody');
+  try {
+    const res = await fetch('/api/cloud-accounts');
+    const data = await res.json();
+    const accounts = data.accounts || [];
+
+    if (accounts.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-muted" style="padding: 36px;">
+            No cloud accounts connected yet. Fill out the form above to add an <strong>AWS</strong>, <strong>Azure</strong>, or <strong>GCP</strong> account.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = accounts.map(a => {
+      const isConnected = a.status === 'CONNECTED';
+      let provBadge = '';
+      if (a.provider === 'AWS') {
+        provBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:11px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">AWS</span>';
+      } else if (a.provider === 'AZURE') {
+        provBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:11px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Azure</span>';
+      } else {
+        provBadge = '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-weight:700; font-size:11px; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;">GCP</span>';
+      }
+
+      const statusBadge = isConnected
+        ? '<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color:#ecfdf5; color:#047857;">● Connected</span>'
+        : `<span style="display:inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background-color:#fef2f2; color:#b91c1c;">● Failed</span>
+           <div style="margin-top: 4px; font-size: 11px;"><a href="#aws-iam-fix-card" style="color: #b45309; font-weight: 600; text-decoration: underline;">Missing IAM Policy &rarr;</a></div>`;
+
+      return `
+        <tr>
+          <td style="padding: 14px 20px;">${provBadge}</td>
+          <td style="padding: 14px 20px; font-weight: 600; color: #111827;">${escapeHtml(a.account_name)}</td>
+          <td style="padding: 14px 20px; font-family: var(--font-mono); font-size: 12px; color: #4b5563;">${escapeHtml(a.account_identifier)}</td>
+          <td style="padding: 14px 20px; font-size: 12px;">${escapeHtml(a.region)}</td>
+          <td style="padding: 14px 20px;">${statusBadge}</td>
+          <td style="padding: 14px 20px; font-size: 12px; color: #6b7280;">${a.last_tested_at ? formatDate(a.last_tested_at) : 'Never'}</td>
+          <td style="padding: 14px 20px; text-align: right;">
+            <div style="display: inline-flex; gap: 6px;">
+              <button class="btn-table-action btn-tbl-start" onclick="retestAccount(${a.id})" title="Test Connection Again">Test</button>
+              <button class="btn-table-action btn-tbl-extend" onclick="discoverFromAccount(${a.id})" title="Discover Instances From This Account">Discover</button>
+              <button class="btn-table-action btn-tbl-stop" onclick="deleteAccount(${a.id})" title="Delete Account">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-rose" style="padding: 20px;">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function retestAccount(id) {
+  try {
+    showBanner('Testing connection for saved account...', 'info');
+    const res = await fetch(`/api/cloud-accounts/${id}/test`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      if (data.account.status === 'CONNECTED') {
+        showBanner(`✓ Account connection verified successfully! Authenticated as ${data.test_result?.arn || data.account.account_identifier}`, 'success');
+      } else {
+        const errMsg = data.test_result?.error || data.account.last_error || 'Connection failed.';
+        showBanner(`✗ Connection Test Failed: ${errMsg}`, 'error');
+      }
+      loadSavedAccounts();
+    } else {
+      showBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+  }
+}
+
+async function sendTestMultiChannelAlert() {
+  let email = document.getElementById('test-alert-email').value.trim();
+  let phone = document.getElementById('test-alert-phone').value.trim();
+  const spinner = document.getElementById('test-alert-spinner');
+  const resultsBox = document.getElementById('alert-dispatch-results-box');
+  const grid = document.getElementById('alert-channels-status-grid');
+  const stopBtn = document.getElementById('btn-live-stop-link');
+  const extendBtn = document.getElementById('btn-live-extend-link');
+
+  if (!email) email = 'vasanthkumar20262026@gmail.com';
+  if (!phone) phone = '+919025903459';
+
+  // Automatically ensure +91 country code for Indian 10-digit mobile numbers
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) {
+    phone = '+91' + digits;
+    document.getElementById('test-alert-phone').value = phone;
+  } else if (digits.length === 12 && digits.startsWith('91')) {
+    phone = '+' + digits;
+    document.getElementById('test-alert-phone').value = phone;
+  }
+
+  if (spinner) spinner.style.display = 'inline-block';
+  try {
+    const res = await fetch('/api/alerts/test-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showBanner(data.message, 'success');
+      resultsBox.style.display = 'block';
+
+      const ch = data.dispatch?.channels || {};
+      const waLink = ch.whatsapp?.whatsapp_link || '';
+      
+      grid.innerHTML = `
+        <div style="background:#ffffff; border:1px solid #10b981; border-radius:8px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="font-weight:700; font-size:12px; color:#1e293b; display:flex; align-items:center; gap:6px;">
+            <span>✉️</span> SMTP Email
+          </div>
+          <div style="font-size:12px; color:#059669; font-weight:700; margin-top:4px;">● Status: ${ch.email?.status || 'SENT'}</div>
+          <div style="font-size:11px; color:#64748b; font-family:var(--font-mono); margin-top:2px;">${escapeHtml(ch.email?.recipient || email)}</div>
+          <div style="font-size:10px; color:#059669; margin-top:6px; font-weight:600;">✓ Live alert sent to your Gmail inbox</div>
+        </div>
+
+        <div style="background:#f0fdf4; border:2px solid #22c55e; border-radius:8px; padding:12px; box-shadow:0 2px 8px rgba(34,197,94,0.2);">
+          <div style="font-weight:700; font-size:12px; color:#15803d; display:flex; align-items:center; justify-content:space-between;">
+            <span style="display:flex; align-items:center; gap:6px;"><span>💬</span> WhatsApp Alert</span>
+            <span style="background:#22c55e; color:#ffffff; font-size:10px; padding:2px 8px; border-radius:12px; font-weight:700;">1-CLICK READY</span>
+          </div>
+          <div style="font-size:12px; color:#15803d; font-weight:700; margin-top:4px;">
+            ● Status: ${ch.whatsapp?.status === 'SENT' ? 'SENT' : 'READY TO SEND'}
+          </div>
+          <div style="font-size:11px; color:#64748b; font-family:var(--font-mono); margin-top:2px;">${escapeHtml(ch.whatsapp?.recipient || 'whatsapp:' + phone)}</div>
+          ${waLink ? `
+            <div style="margin-top:10px;">
+              <a href="${waLink}" target="_blank" style="display:block; text-align:center; padding:9px 12px; background:#22c55e; color:#ffffff; border-radius:6px; font-weight:700; font-size:12px; text-decoration:none; box-shadow:0 2px 4px rgba(34,197,94,0.3); transition:background 0.2s;">
+                📲 Tap to Open &amp; Send in WhatsApp &rarr;
+              </a>
+              <div style="font-size:10px; color:#166534; margin-top:4px; text-align:center; font-weight:600;">
+                Click above to open WhatsApp directly with full alert &amp; 🛑 Stop button!
+              </div>
+            </div>` : ''}
+        </div>
+
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="font-weight:700; font-size:12px; color:#1e293b; display:flex; align-items:center; gap:6px;">
+            <span>📱</span> Twilio SMS
+          </div>
+          <div style="font-size:12px; color:${ch.sms?.status === 'SENT' ? '#059669' : '#d97706'}; font-weight:700; margin-top:4px;">
+            ● Status: ${ch.sms?.status === 'SENT' ? 'SENT' : 'TRIAL NOTICE'}
+          </div>
+          <div style="font-size:11px; color:#64748b; font-family:var(--font-mono); margin-top:2px;">${escapeHtml(ch.sms?.recipient || phone)}</div>
+          <div style="font-size:10px; color:#64748b; margin-top:6px;">
+            ${ch.sms?.status === 'SENT' ? '✓ Delivered via Twilio SMS' : 'Indian TRAI regulations require Twilio account upgrade for direct SMS. Use WhatsApp &amp; Email above!'}
+          </div>
+        </div>
+
+        <div style="background:${ch.ntfy?.status === 'SENT' ? '#f0fdf4' : '#fef2f2'}; border:2px solid ${ch.ntfy?.status === 'SENT' ? '#059669' : '#ef4444'}; border-radius:8px; padding:12px; box-shadow:0 2px 6px rgba(5,150,105,0.15);">
+          <div style="font-weight:700; font-size:12px; color:${ch.ntfy?.status === 'SENT' ? '#065f46' : '#991b1b'}; display:flex; align-items:center; justify-content:space-between;">
+            <span style="display:flex; align-items:center; gap:6px;"><span>🔔</span> ntfy Mobile Push</span>
+            <span style="background:${ch.ntfy?.status === 'SENT' ? '#059669' : '#ef4444'}; color:#ffffff; font-size:10px; padding:2px 8px; border-radius:12px; font-weight:700;">${ch.ntfy?.status === 'SENT' ? 'INSTANT SOUND' : 'ERROR'}</span>
+          </div>
+          <div style="font-size:12px; color:${ch.ntfy?.status === 'SENT' ? '#059669' : '#dc2626'}; font-weight:700; margin-top:4px;">
+            ● Status: ${ch.ntfy?.status || 'SENT'}
+          </div>
+          <div style="font-size:11px; color:#64748b; font-family:var(--font-mono); margin-top:2px;">Topic: ${escapeHtml(ch.ntfy?.topic || 'vasanth_cloud_alerts')}</div>
+          <div style="font-size:10px; color:${ch.ntfy?.status === 'SENT' ? '#065f46' : '#b91c1c'}; margin-top:6px; font-weight:600;">
+            ${ch.ntfy?.status === 'SENT' ? '✓ Real-time push notification delivered to your ntfy Android app with 🛑 Stop button!' : escapeHtml(ch.ntfy?.error || 'Failed to dispatch push notification.')}
+          </div>
+        </div>
+      `;
+
+      stopBtn.href = data.stop_url;
+      extendBtn.href = data.extend_url;
+      resultsBox.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      showBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+  } finally {
+    if (spinner) spinner.style.display = 'none';
+  }
+}
+
+async function discoverFromAccount(id) {
+  try {
+    showBanner('Discovering compute instances from AWS account...', 'info');
+    const res = await fetch(`/api/cloud-accounts/${id}/discover`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showBanner(data.message, 'success');
+      alert(`✓ ${data.message}\n\nClick OK to go to the Dashboard to view and schedule your instances!`);
+      window.location.href = '/dashboard';
+    } else {
+      showBanner(data.error, 'error');
+      alert(`Discovery Notice: ${data.error}`);
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+    alert(`Error: ${err.message}`);
+  }
+}
+
+async function deleteAccount(id) {
+  if (!confirm('Are you sure you want to remove this cloud account integration?')) return;
+  try {
+    const res = await fetch(`/api/cloud-accounts/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showBanner(data.message, 'success');
+      loadSavedAccounts();
+    } else {
+      showBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+  }
+}
+
+async function clearDiscoveredInventory() {
+  if (!confirm('Are you sure you want to purge all discovered cloud resources from the database? This will reset the dashboard to a clean empty state.')) return;
+  try {
+    const res = await fetch('/api/resources/clear', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showBanner(data.message, 'success');
+    } else {
+      showBanner(data.error, 'error');
+    }
+  } catch (err) {
+    showBanner(err.message, 'error');
+  }
+}
+
+function showBanner(msg, type = 'info') {
+  const b = document.getElementById('account-alert-banner');
+  if (!b) return;
+  b.style.display = 'block';
+  if (type === 'success') {
+    b.style.backgroundColor = '#ecfdf5';
+    b.style.color = '#065f46';
+    b.style.border = '1px solid #a7f3d0';
+  } else if (type === 'error') {
+    b.style.backgroundColor = '#fef2f2';
+    b.style.color = '#991b1b';
+    b.style.border = '1px solid #fecaca';
+  } else {
+    b.style.backgroundColor = '#eff6ff';
+    b.style.color = '#1e40af';
+    b.style.border = '1px solid #bfdbfe';
+  }
+  b.innerText = msg;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatDate(isoStr) {
+  if (!isoStr) return 'N/A';
+  const d = new Date(isoStr);
+  return d.toLocaleString('en-US', {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+    hour12: false
+  });
+}
+</script>
+{% endblock %}

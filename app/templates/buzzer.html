@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🚨 MOBILE CLOUD ALARM & BUZZER</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 24px 16px 40px 16px;
+      text-align: center;
+      overflow-x: hidden;
+    }
+
+    .top-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .badge-armed { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #059669; }
+    .badge-breach { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; animation: pulse-border 1s infinite alternate; }
+    .badge-unarmed { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #d97706; }
+
+    @keyframes pulse-border {
+      0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+      100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.9); }
+    }
+
+    .siren-box {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 50px;
+      margin: 0 auto 16px auto;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.3s;
+    }
+    .siren-breach {
+      background: #dc2626;
+      box-shadow: 0 0 50px rgba(239, 68, 68, 0.8), 0 0 100px rgba(239, 68, 68, 0.4);
+      animation: pulse-siren 0.7s infinite alternate;
+    }
+    .siren-standby {
+      background: #1e293b;
+      border: 2px dashed #475569;
+      color: #94a3b8;
+    }
+    @keyframes pulse-siren {
+      0% { transform: scale(0.92); box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); }
+      100% { transform: scale(1.12); box-shadow: 0 0 80px rgba(239, 68, 68, 1), 0 0 140px rgba(239, 68, 68, 0.6); }
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .title-breach { color: #f87171; text-transform: uppercase; }
+    .title-normal { color: #f1f5f9; }
+
+    .subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 20px;
+      line-height: 1.4;
+      max-width: 380px;
+    }
+
+    .arm-banner {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+      width: 100%;
+      max-width: 380px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .arm-banner-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .arm-banner-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .btn-arm {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #ffffff;
+      border: 2px solid #60a5fa;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 800;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 380px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-test-buzzer {
+      background: #dc2626;
+      color: #ffffff;
+      border: 2px solid #f87171;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 800;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 380px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(220, 38, 38, 0.4);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-silence {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #475569;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .incident-card {
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #ef4444;
+      border-radius: 14px;
+      padding: 16px;
+      width: 100%;
+      max-width: 380px;
+      text-align: left;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.25);
+    }
+    .incident-row { margin-bottom: 10px; }
+    .incident-label { font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 2px; }
+    .incident-val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #f1f5f9; font-weight: 700; word-break: break-all; }
+    .incident-reason { color: #fca5a5; font-size: 12px; font-weight: 600; line-height: 1.4; }
+
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+      max-width: 380px;
+      margin-bottom: 20px;
+    }
+    .btn-action-stop {
+      background: #dc2626;
+      color: #fff;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-action-extend {
+      background: #2563eb;
+      color: #fff;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 800;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-force-test {
+      background: #0f172a;
+      color: #38bdf8;
+      border: 1px solid #0284c7;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      max-width: 380px;
+      margin-bottom: 24px;
+    }
+
+    .footer-links {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 10px;
+    }
+    .footer-links a { color: #60a5fa; text-decoration: none; margin: 0 8px; }
+  </style>
+</head>
+<body onclick="handleGlobalClick()">
+
+  <!-- Audio Element -->
+  <audio id="audio-el" src="/static/audio/buzzer.wav" loop preload="auto"></audio>
+
+  <!-- Status Badge -->
+  <span class="top-badge badge-unarmed" id="status-badge">
+    <span style="font-size: 14px;">⚠️</span> ALARM UNARMED (TAP BELOW TO ARM)
+  </span>
+
+  <!-- Siren Visual Indicator -->
+  <div class="siren-box siren-standby" id="siren-circle" onclick="toggleBuzzer()">
+    <span id="siren-emoji">🛡️</span>
+  </div>
+
+  <h1 id="alarm-title" class="title-normal">Mobile Cloud Monitor</h1>
+  <p class="subtitle" id="alarm-desc">
+    Keeps a live radar connection to your cloud resources. When an instance runs outside its schedule, the loud phone buzzer will trigger.
+  </p>
+
+  <!-- Arming Explanation Banner -->
+  <div class="arm-banner" id="arm-banner">
+    <div class="arm-banner-title">
+      <span>📱</span> Mobile Audio Permission Required
+    </div>
+    <div class="arm-banner-desc">
+      Mobile browsers (Android & iOS) protect you by muting background sound until you tap once. Tap <strong>"ARM PHONE BUZZER"</strong> to unlock instant alarms.
+    </div>
+  </div>
+
+  <!-- Primary Controls -->
+  <button type="button" class="btn-arm" id="arm-btn" onclick="armAlarm(event)">
+    🔔 ARM PHONE BUZZER (STANDBY)
+  </button>
+
+  <button type="button" class="btn-test-buzzer" id="test-buzzer-btn" onclick="toggleBuzzer(event)">
+    🔊 TEST LOUD BUZZER SOUND
+  </button>
+
+  <button type="button" class="btn-silence" id="silence-btn" onclick="silenceBuzzer(event)" style="display:none;">
+    🔇 Silence Buzzer Alarm
+  </button>
+
+  <!-- Live Breach Details Card -->
+  <div class="incident-card" id="incident-box" style="display:none;">
+    <div class="incident-row">
+      <div class="incident-label">🚨 Target Cloud Instance</div>
+      <div class="incident-val" id="inst-name">Dev-Batch-Worker (i-0b2c3d4e5f6a7002)</div>
+    </div>
+    <div class="incident-row">
+      <div class="incident-label">Operating Schedule Breach</div>
+      <div class="incident-reason" id="inst-reason">Running past scheduled operating deadline</div>
+    </div>
+    <div class="incident-row" style="margin-bottom:0;">
+      <div class="incident-label">Continuous Uptime</div>
+      <div class="incident-val" id="inst-uptime" style="color:#fbbf24;">4.2 Hours</div>
+    </div>
+  </div>
+
+  <!-- 1-Click Quick Actions -->
+  <div class="action-grid" id="action-grid" style="display:none;">
+    <a href="#" class="btn-action-stop" id="btn-stop-link" target="_blank" onclick="silenceBuzzer()">🛑 Stop Instance</a>
+    <a href="#" class="btn-action-extend" id="btn-extend-link" target="_blank" onclick="silenceBuzzer()">⏳ Extend (+60m)</a>
+  </div>
+
+  <!-- Force Test Trigger Button -->
+  <button type="button" class="btn-force-test" onclick="forceTriggerTest(event)">
+    ⚡ Reset & Force Trigger Schedule Breach Test
+  </button>
+
+  <div class="footer-links">
+    <a href="/dashboard">← Open Full Dashboard</a> • 
+    <a href="/schedules">Schedules</a>
+  </div>
+
+  <script>
+    let isArmed = false;
+    let isBuzzing = false;
+    let webAudioCtx = null;
+    let buzzerVibrateInterval = null;
+    let telemetryTimer = null;
+    let wakeLock = null;
+
+    // Request wake lock so phone screen does not sleep during active monitoring
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (err) {
+        console.log('WakeLock not supported or allowed');
+      }
+    }
+
+    function handleGlobalClick() {
+      // If user hasn't armed yet, first tap arms it automatically
+      if (!isArmed) {
+        armAlarm();
+      }
+    }
+
+    function initWebAudio() {
+      if (!webAudioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          webAudioCtx = new AudioCtx();
+        }
+      }
+      if (webAudioCtx && webAudioCtx.state === 'suspended') {
+        webAudioCtx.resume();
+      }
+    }
+
+    function armAlarm(e) {
+      if (e) e.stopPropagation();
+      initWebAudio();
+      requestWakeLock();
+      isArmed = true;
+
+      // Update UI to ARMED STANDBY
+      const badge = document.getElementById('status-badge');
+      badge.className = 'top-badge badge-armed';
+      badge.innerHTML = '<span>🟢</span> BUZZER ARMED • MONITORING ACTIVE';
+
+      document.getElementById('arm-btn').style.display = 'none';
+      document.getElementById('arm-banner').style.display = 'none';
+      
+      // Start polling telemetry
+      checkTelemetry();
+    }
+
+    function startBuzzer() {
+      if (isBuzzing) return;
+      isBuzzing = true;
+      initWebAudio();
+
+      document.getElementById('silence-btn').style.display = 'inline-block';
+      document.getElementById('test-buzzer-btn').style.display = 'none';
+
+      // Visual Siren state
+      const siren = document.getElementById('siren-circle');
+      siren.className = 'siren-box siren-breach';
+      document.getElementById('siren-emoji').innerText = '🚨';
+
+      const badge = document.getElementById('status-badge');
+      badge.className = 'top-badge badge-breach';
+      badge.innerHTML = '<span>🚨</span> POLICY BREACH • BUZZER RINGING (100%)';
+
+      // 1. Play HTML5 Audio element
+      const audioEl = document.getElementById('audio-el');
+      if (audioEl) {
+        audioEl.volume = 1.0;
+        audioEl.play().catch(e => console.warn('Audio tag play error:', e));
+      }
+
+      // 2. Play Web Audio API Synthesis fallback (loud sawtooth siren)
+      startWebAudioSynthesis();
+
+      // 3. Physical phone vibration pattern
+      if (navigator.vibrate) {
+        navigator.vibrate([600, 200, 600, 200, 1000]);
+        if (!buzzerVibrateInterval) {
+          buzzerVibrateInterval = setInterval(() => {
+            if (isBuzzing && navigator.vibrate) {
+              navigator.vibrate([600, 200, 600, 200, 1000]);
+            }
+          }, 2600);
+        }
+      }
+    }
+
+    function silenceBuzzer(e) {
+      if (e) e.stopPropagation();
+      isBuzzing = false;
+
+      document.getElementById('silence-btn').style.display = 'none';
+      document.getElementById('test-buzzer-btn').style.display = 'flex';
+
+      const audioEl = document.getElementById('audio-el');
+      if (audioEl) audioEl.pause();
+
+      if (buzzerVibrateInterval) {
+        clearInterval(buzzerVibrateInterval);
+        buzzerVibrateInterval = null;
+      }
+      if (navigator.vibrate) navigator.vibrate(0);
+
+      const siren = document.getElementById('siren-circle');
+      siren.className = 'siren-box siren-standby';
+      document.getElementById('siren-emoji').innerText = '🛡️';
+
+      const badge = document.getElementById('status-badge');
+      badge.className = 'top-badge badge-armed';
+      badge.innerHTML = '<span>🟢</span> BUZZER ARMED • MONITORING ACTIVE';
+    }
+
+    function toggleBuzzer(e) {
+      if (e) e.stopPropagation();
+      if (!isArmed) armAlarm();
+      if (isBuzzing) silenceBuzzer();
+      else startBuzzer();
+    }
+
+    function startWebAudioSynthesis() {
+      try {
+        if (!webAudioCtx) initWebAudio();
+        if (!webAudioCtx) return;
+
+        function playPulse() {
+          if (!isBuzzing || !webAudioCtx) return;
+          const now = webAudioCtx.currentTime;
+          for (let i = 0; i < 3; i++) {
+            const t = now + i * 0.42;
+            const osc = webAudioCtx.createOscillator();
+            const gain = webAudioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, t);
+            osc.frequency.setValueAtTime(440, t + 0.16);
+            gain.gain.setValueAtTime(0.85, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+            osc.connect(gain);
+            gain.connect(webAudioCtx.destination);
+            osc.start(t);
+            osc.stop(t + 0.38);
+          }
+          if (isBuzzing) setTimeout(playPulse, 1800);
+        }
+        playPulse();
+      } catch (err) {
+        console.warn('WebAudio error:', err);
+      }
+    }
+
+    // Live Telemetry Polling (every 3 seconds)
+    async function checkTelemetry() {
+      try {
+        const res = await fetch('/api/public/buzzer-status');
+        const data = await res.json();
+
+        if (data.success && data.has_breach) {
+          const firstBreach = data.breaches[0];
+          document.getElementById('alarm-title').className = 'title-breach';
+          
+          if (firstBreach.grace_expired) {
+            document.getElementById('alarm-title').innerText = '🚨 GRACE PERIOD ENDED: BUZZER ALARM ACTIVE!';
+            document.getElementById('alarm-desc').innerText = `Grace period expired without action. Automated shutdown engaged. Loud siren buzzer is sounding!`;
+            // If ARMED, sound the loud buzzer alarm!
+            if (isArmed && !isBuzzing) {
+              startBuzzer();
+            }
+          } else {
+            const remMins = firstBreach.grace_remaining_mins || 30;
+            document.getElementById('alarm-title').innerText = '⚠️ SCHEDULE BREACH (GRACE PERIOD ACTIVE)';
+            document.getElementById('alarm-desc').innerText = `Instance is in violation. Grace window: ${remMins}m remaining. Standard notification chime sent; loud buzzer sounds when grace period ends.`;
+          }
+
+          document.getElementById('incident-box').style.display = 'block';
+          document.getElementById('action-grid').style.display = 'grid';
+
+          document.getElementById('inst-name').innerText = `${firstBreach.instance_name} (${firstBreach.instance_id})`;
+          document.getElementById('inst-reason').innerText = firstBreach.reason;
+          document.getElementById('inst-uptime').innerText = `${firstBreach.uptime_hours} Hours`;
+
+          document.getElementById('btn-stop-link').href = firstBreach.stop_url;
+          document.getElementById('btn-extend-link').href = firstBreach.extend_url;
+        } else {
+          // Compliant state
+          if (!isBuzzing) {
+            document.getElementById('alarm-title').className = 'title-normal';
+            document.getElementById('alarm-title').innerText = 'All Schedules Compliant';
+            document.getElementById('alarm-desc').innerText = 'All monitored cloud compute resources are operating within authorized schedule policy.';
+            document.getElementById('incident-box').style.display = 'none';
+            document.getElementById('action-grid').style.display = 'none';
+          }
+        }
+      } catch (err) {
+        console.warn('Telemetry poll error:', err);
+      } finally {
+        if (isArmed) {
+          setTimeout(checkTelemetry, 5000);
+        }
+      }
+    }
+
+    // Force Trigger Test Alert
+    async function forceTriggerTest(e) {
+      if (e) e.stopPropagation();
+      if (!isArmed) armAlarm();
+
+      const btn = e ? e.target : null;
+      if (btn) btn.innerText = '⏳ Resetting & Dispatching Alert...';
+
+      try {
+        const res = await fetch('/api/public/reset-and-test-alarm', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          // Immediately poll and start buzzer
+          setTimeout(checkTelemetry, 500);
+          startBuzzer();
+        } else {
+          alert('Test error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      } finally {
+        if (btn) btn.innerText = '⚡ Reset & Force Trigger Schedule Breach Test';
+      }
+    }
+
+    // Initial check and auto-buzz trigger
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('autobuzz') === '1') {
+        isArmed = true;
+        initWebAudio();
+        startBuzzer();
+      }
+      checkTelemetry();
+    });
+
+    // Touch/click listener to unlock audio and immediately play buzzer if active
+    ['touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, () => {
+        if (!isArmed) armAlarm();
+        const urlParams = new URLSearchParams(window.location.search);
+        if ((urlParams.get('autobuzz') === '1' || document.getElementById('incident-box').style.display !== 'none') && !isBuzzing) {
+          startBuzzer();
+        }
+      }, { passive: true });
+    });
+  </script>
+</body>
+</html>

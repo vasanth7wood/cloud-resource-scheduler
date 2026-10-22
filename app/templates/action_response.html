@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if success %}Action Verified & Executed | CloudResourceScheduler{% else %}Action Authorization Failed | CloudResourceScheduler{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+  <!-- Top Header Bar with Brand Logo -->
+  <header class="auth-header-bar">
+    <div class="brand-logo-container brand-dark-text">
+      <div class="brand-icon-box">
+        <div class="brand-icon-bars">
+          <div class="brand-bar b1"></div>
+          <div class="brand-bar b2"></div>
+          <div class="brand-bar b3"></div>
+        </div>
+      </div>
+      <div class="brand-text-block">
+        <span class="brand-name">CloudResource</span>
+        <span class="brand-tag">SCHEDULER</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="auth-center-container">
+    <div class="content-block-card" style="max-width: 540px; width: 100%; padding: 36px 32px; text-align: center; border-radius: 20px;">
+      
+      <!-- Status Icon Badge -->
+      <div style="margin-bottom: 20px;">
+        {% if success %}
+          <div style="width: 64px; height: 64px; border-radius: 50%; background-color: #ecfdf5; border: 2px solid #a7f3d0; color: #059669; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <span class="badge-state-pill badge-state-running" style="padding: 4px 12px; font-size: 11px;">Action Successfully Executed</span>
+        {% else %}
+          <div style="width: 64px; height: 64px; border-radius: 50%; background-color: #fef2f2; border: 2px solid #fecaca; color: #dc2626; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <span style="background-color: #fef2f2; color: #b91c1c; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;">Authorization Failed</span>
+        {% endif %}
+      </div>
+
+      <h2 style="font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 20px; line-height: 1.3;">{{ message }}</h2>
+
+      <!-- Details Summary -->
+      <div style="background-color: #f8faf9; border: 1px solid var(--border-light); border-radius: 12px; padding: 16px; text-align: left; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px;">
+          <span style="color: #6b7280;">Target Instance:</span>
+          <span style="font-family: var(--font-mono); font-weight: 600; color: #059669;">{{ instance_id }}</span>
+        </div>
+        
+        {% if details and details.get('instance_name') %}
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px;">
+          <span style="color: #6b7280;">Resource Name:</span>
+          <span style="font-weight: 600;">{{ details.get('instance_name') }}</span>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px;">
+          <span style="color: #6b7280;">Operation:</span>
+          <span style="font-weight: 700; color: #0f584c;">{{ action | upper }}</span>
+        </div>
+
+        {% if details and details.get('lease_expires_at') %}
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px;">
+          <span style="color: #6b7280;">New Lease Expiry:</span>
+          <span style="font-family: var(--font-mono); font-weight: 600; color: #059669;">{{ details.get('lease_expires_at') }}</span>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+          <span style="color: #6b7280;">Timestamp:</span>
+          <span style="font-family: var(--font-mono); color: #4b5563;">{{ timestamp }}</span>
+        </div>
+      </div>
+
+      <a href="{{ url_for('auth.quick_login') }}" class="btn-discover-resources" style="display: inline-flex; justify-content: center; width: 100%; text-decoration: none; padding: 13px 20px; font-weight: 700; font-size: 14px;">
+        <span>⚡ Open Cloud Dashboard (1-Click Login)</span>
+      </a>
+
+      <div style="font-size: 11px; color: #9ca3af; margin-top: 20px;">
+        🔒 Authenticated via HMAC-SHA256 • Single-Click Remote Action
+      </div>
+
+    </div>
+  </main>
+</div>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Audit logs | Cloud Scheduler{% endblock %}
+
+{% block content %}
+<!-- Top Blue Navigation Bar -->
+<nav class="top-blue-navbar">
+  <div class="navbar-left-group">
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-brand-title">Cloud Scheduler</a>
+    <a href="{{ url_for('dashboard.view_dashboard') }}" class="navbar-nav-link">Dashboard</a>
+    <a href="{{ url_for('dashboard.view_resources') }}" class="navbar-nav-link">Resources</a>
+    <a href="{{ url_for('dashboard.view_schedules') }}" class="navbar-nav-link">Schedules</a>
+    <a href="{{ url_for('dashboard.view_alerts') }}" class="navbar-nav-link">Alerts</a>
+    <a href="{{ url_for('dashboard.view_audit_logs') }}" class="navbar-nav-link active">Audit logs</a>
+    <a href="{{ url_for('dashboard.view_cloud_accounts') }}" class="navbar-nav-link">Cloud Accounts</a>
+  </div>
+
+  <div class="navbar-right-group">
+    <span class="navbar-username">{{ user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn-navbar-logout">Logout</a>
+  </div>
+</nav>
+
+<!-- Page Content -->
+<main class="page-standard-container">
+  <h1 class="page-heading-title">Audit logs</h1>
+
+  <!-- Audit Table Card -->
+  <div class="card-white-box" style="padding: 0; overflow: hidden;">
+    <table class="clean-resource-table">
+      <thead>
+        <tr style="background-color: #ffffff;">
+          <th style="padding: 14px 20px;">Timestamp</th>
+          <th style="padding: 14px 20px;">Triggered By</th>
+          <th style="padding: 14px 20px;">Action</th>
+          <th style="padding: 14px 20px;">Instance</th>
+          <th style="padding: 14px 20px;">Details</th>
+        </tr>
+      </thead>
+      <tbody id="page-audit-tbody">
+        <tr>
+          <td colspan="5" class="text-center py-4 text-muted" style="padding: 28px;">
+            Audit ledger is empty.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  loadAuditLogs();
+});
+
+async function loadAuditLogs() {
+  const tbody = document.getElementById('page-audit-tbody');
+  try {
+    const res = await fetch('/api/audit-logs');
+    const data = await res.json();
+    const logs = data.audit_logs || [];
+
+    if (logs.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-muted" style="padding: 36px;">
+            Audit ledger is currently empty.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = logs.map(l => `
+      <tr>
+        <td style="padding: 14px 20px; font-family: var(--font-mono); font-size: 11px;">${l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : ''}</td>
+        <td style="padding: 14px 20px; font-family: var(--font-mono); font-size: 11px; color: #1a73e8;">${escapeHtml(l.triggered_by)}</td>
+        <td style="padding: 14px 20px;">
+          <span style="display:inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; ${l.action_taken.includes('STOP') || l.action_taken.includes('SHUTDOWN') ? 'background-color:#fee2e2; color:#b91c1c;' : 'background-color:#e0f2fe; color:#0369a1;'}">
+            ${l.action_taken}
+          </span>
+        </td>
+        <td style="padding: 14px 20px; font-weight: 500;">${escapeHtml(l.instance_name || 'N/A')}</td>
+        <td style="padding: 14px 20px; font-size: 12px; color: #4b5563;">${escapeHtml(l.details || '')}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-rose" style="padding:20px;">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}
