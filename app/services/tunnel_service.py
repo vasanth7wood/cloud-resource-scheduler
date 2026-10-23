@@ -259,6 +259,11 @@ def get_public_base_url(app=None) -> str:
     if not configured:
         configured = os.environ.get('WEBHOOK_BASE_URL')
 
+    if not configured or 'localhost' in configured or '127.0.0.1' in configured:
+        render_ext = os.environ.get('RENDER_EXTERNAL_URL')
+        if render_ext:
+            configured = render_ext.rstrip('/')
+
     if configured:
         clean = configured.strip().rstrip('/')
         if 'localhost' not in clean and '127.0.0.1' not in clean and 'remember-refused-date-exercises' not in clean:

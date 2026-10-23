@@ -12,7 +12,7 @@ class Config:
     PORT = int(os.environ.get('PORT', 5000))
 
     # Base URL for Webhook generation
-    WEBHOOK_BASE_URL = os.environ.get('WEBHOOK_BASE_URL', 'http://localhost:5000').rstrip('/')
+    WEBHOOK_BASE_URL = (os.environ.get('WEBHOOK_BASE_URL') or os.environ.get('RENDER_EXTERNAL_URL') or 'http://localhost:5000').rstrip('/')
 
     # Database Configuration
     DATABASE_URL = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:password@localhost:3306/cloud_scheduler')
